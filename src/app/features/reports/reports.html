@@ -1,126 +1,161 @@
+<app-page-loading [loading]="loading()" message="Loading reports…">
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
-  <h1 class="h3 page-title mb-0">Reports &amp; Audit</h1>
+  <div>
+    <h1 class="h3 page-title mb-0">Reports &amp; Audit</h1>
+    <div class="page-meta">
+      <span class="meta-badge">
+        <i class="bi bi-bar-chart-line me-1"></i>Analytics
+      </span>
+      <span class="meta-text">Sales, GST, inventory &amp; stock audit</span>
+    </div>
+  </div>
 </div>
 
-<!-- Tabs -->
-<ul class="nav nav-pills flex-wrap gap-1 mb-3">
-  <li class="nav-item">
-    <button class="nav-link" [class.active]="tab() === 'sales'" (click)="setTab('sales')">
-      <i class="bi bi-graph-up me-1"></i>Sales
-    </button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" [class.active]="tab() === 'gst'" (click)="setTab('gst')">
-      <i class="bi bi-percent me-1"></i>GST
-    </button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" [class.active]="tab() === 'inventory'" (click)="setTab('inventory')">
-      <i class="bi bi-box-seam me-1"></i>Inventory
-    </button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" [class.active]="tab() === 'audit'" (click)="setTab('audit')">
-      <i class="bi bi-clock-history me-1"></i>Stock Audit Log
-    </button>
-  </li>
-</ul>
+<div class="reports-tabs">
+  <button type="button" class="reports-tab" [class.active]="tab() === 'sales'" (click)="setTab('sales')">
+    <i class="bi bi-graph-up me-1"></i>Sales
+  </button>
+  <button type="button" class="reports-tab" [class.active]="tab() === 'gst'" (click)="setTab('gst')">
+    <i class="bi bi-percent me-1"></i>GST
+  </button>
+  <button type="button" class="reports-tab" [class.active]="tab() === 'inventory'" (click)="setTab('inventory')">
+    <i class="bi bi-box-seam me-1"></i>Inventory
+  </button>
+  <button type="button" class="reports-tab" [class.active]="tab() === 'audit'" (click)="setTab('audit')">
+    <i class="bi bi-clock-history me-1"></i>Stock Audit Log
+  </button>
+</div>
 
 <!-- Date range (used by sales, gst, audit) -->
 @if (tab() !== 'inventory') {
-  <div class="card mb-3">
-    <div class="card-body d-flex flex-wrap align-items-end gap-3">
-      <div>
-        <label class="form-label small mb-1" for="fromDate">From</label>
-        <input
-          id="fromDate"
-          type="date"
-          class="form-control form-control-sm"
-          [ngModel]="fromDate()"
-          (ngModelChange)="fromDate.set($event)"
-        />
-      </div>
-      <div>
-        <label class="form-label small mb-1" for="toDate">To</label>
-        <input
-          id="toDate"
-          type="date"
-          class="form-control form-control-sm"
-          [ngModel]="toDate()"
-          (ngModelChange)="toDate.set($event)"
-        />
-      </div>
-    </div>
+  <div class="day-filter-bar mb-3">
+    <span class="day-filter-label">From</span>
+    <input
+      id="fromDate"
+      type="date"
+      class="day-filter-date text-none"
+      [ngModel]="fromDate()"
+      (ngModelChange)="onFromDate($event)"
+    />
+    <span class="day-filter-label">To</span>
+    <input
+      id="toDate"
+      type="date"
+      class="day-filter-date text-none"
+      [ngModel]="toDate()"
+      (ngModelChange)="onToDate($event)"
+    />
+    <button type="button" class="day-filter-btn" (click)="setTodayRange()">Today</button>
   </div>
 }
 
 <!-- SALES -->
 @if (tab() === 'sales') {
-  <div class="row g-3 mb-3">
+  <div class="row g-3 mb-3 page-summary">
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Invoices</div>
-        <div class="h4 mb-0">{{ salesSummary().count }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--primary h-100">
+        <div class="card-body">
+          <div class="stat-label">Invoices</div>
+          <div class="stat-value">{{ salesSummary().count }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Total billed</div>
-        <div class="h4 mb-0">{{ salesSummary().total | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--info h-100">
+        <div class="card-body">
+          <div class="stat-label">Total billed</div>
+          <div class="stat-value">{{ salesSummary().total | inr }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Collected</div>
-        <div class="h4 mb-0 text-success">{{ salesSummary().paid | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--success h-100">
+        <div class="card-body">
+          <div class="stat-label">Collected</div>
+          <div class="stat-value">{{ salesSummary().paid | inr }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Outstanding</div>
-        <div class="h4 mb-0 text-danger">{{ salesSummary().outstanding | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--danger h-100">
+        <div class="card-body">
+          <div class="stat-label">Outstanding</div>
+          <div class="stat-value">{{ salesSummary().outstanding | inr }}</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+  <div class="card page-main-card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span class="fw-semibold">Sales detail</span>
       <button class="btn btn-sm btn-outline-primary" (click)="exportSales()" [disabled]="!salesInvoices().length">
         <i class="bi bi-download me-1"></i>Export CSV
       </button>
     </div>
     <div class="card-body p-0">
+      <div class="panel-toolbar">
+        <app-list-search
+          class="list-search-full"
+          placeholder="Search sales…"
+          [value]="salesSearch()"
+          (valueChange)="onSearch('sales', $event)"
+        />
+      </div>
       @if (salesInvoices().length) {
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
               <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Customer</th>
+                <th style="width: 1%">#</th>
+                <th class="sortable-th" (click)="setSort('sales', 'invoiceNo')">
+                  Invoice # <i class="bi {{ sortIcon('sales', 'invoiceNo') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('sales', 'createdAt')">
+                  Date <i class="bi {{ sortIcon('sales', 'createdAt') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('sales', 'customer')">
+                  Customer <i class="bi {{ sortIcon('sales', 'customer') }}"></i>
+                </th>
                 <th>Type</th>
-                <th class="text-end">Subtotal</th>
-                <th class="text-end">Tax</th>
-                <th class="text-end">Total</th>
-                <th>Status</th>
+                <th class="text-end sortable-th" (click)="setSort('sales', 'subtotal')">
+                  Subtotal <i class="bi {{ sortIcon('sales', 'subtotal') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('sales', 'tax')">
+                  Tax <i class="bi {{ sortIcon('sales', 'tax') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('sales', 'total')">
+                  Total <i class="bi {{ sortIcon('sales', 'total') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('sales', 'status')">
+                  Status <i class="bi {{ sortIcon('sales', 'status') }}"></i>
+                </th>
               </tr>
             </thead>
             <tbody>
-              @for (inv of salesInvoices(); track inv.id) {
+              @for (inv of pagedSales(); track inv.id; let i = $index) {
                 <tr>
+                  <td class="text-muted">{{ rowNumber(salesPage(), i) }}</td>
                   <td class="fw-semibold">{{ inv.invoiceNo }}</td>
                   <td>{{ inv.createdAt | date: 'dd MMM yyyy' }}</td>
                   <td>{{ inv.customerName || '—' }}</td>
                   <td><span class="badge text-bg-light border">{{ billingLabel(inv) }}</span></td>
-                  <td class="text-end">{{ inv.subtotal | currency }}</td>
-                  <td class="text-end">{{ inv.taxTotal | currency }}</td>
-                  <td class="text-end fw-semibold">{{ inv.total | currency }}</td>
+                  <td class="text-end">{{ inv.subtotal | inr }}</td>
+                  <td class="text-end">{{ inv.taxTotal | inr }}</td>
+                  <td class="text-end fw-semibold">{{ inv.total | inr }}</td>
                   <td class="text-capitalize">{{ inv.status }}</td>
                 </tr>
               }
             </tbody>
           </table>
+        </div>
+        <div class="px-3 pb-3 pt-1">
+          <app-pagination
+            [total]="salesInvoices().length"
+            [pageSize]="pageSize"
+            [page]="salesPage()"
+            (pageChange)="salesPage.set($event)"
+          />
         </div>
       } @else {
         <p class="text-muted text-center py-4 mb-0">No invoices in this period.</p>
@@ -131,73 +166,117 @@
 
 <!-- GST -->
 @if (tab() === 'gst') {
-  <div class="row g-3 mb-3">
+  <div class="row g-3 mb-3 page-summary">
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Taxable value</div>
-        <div class="h5 mb-0">{{ gstSummary().taxable | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--primary h-100">
+        <div class="card-body">
+          <div class="stat-label">Taxable value</div>
+          <div class="stat-value">{{ gstSummary().taxable | inr }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">CGST</div>
-        <div class="h5 mb-0">{{ gstSummary().cgst | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--info h-100">
+        <div class="card-body">
+          <div class="stat-label">CGST</div>
+          <div class="stat-value">{{ gstSummary().cgst | inr }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">SGST</div>
-        <div class="h5 mb-0">{{ gstSummary().sgst | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--info h-100">
+        <div class="card-body">
+          <div class="stat-label">SGST</div>
+          <div class="stat-value">{{ gstSummary().sgst | inr }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">IGST</div>
-        <div class="h5 mb-0">{{ gstSummary().igst | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--warning h-100">
+        <div class="card-body">
+          <div class="stat-label">IGST</div>
+          <div class="stat-value">{{ gstSummary().igst | inr }}</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-      <span class="fw-semibold">GST detail (total tax {{ gstSummary().total | currency }})</span>
+  <div class="card page-main-card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span class="fw-semibold">GST detail (total tax {{ gstSummary().total | inr }})</span>
       <button class="btn btn-sm btn-outline-primary" (click)="exportGst()" [disabled]="!gstInvoices().length">
         <i class="bi bi-download me-1"></i>Export CSV
       </button>
     </div>
     <div class="card-body p-0">
+      <div class="panel-toolbar">
+        <app-list-search
+          class="list-search-full"
+          placeholder="Search GST invoices…"
+          [value]="gstSearch()"
+          (valueChange)="onSearch('gst', $event)"
+        />
+      </div>
       @if (gstInvoices().length) {
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
               <tr>
-                <th>Invoice #</th>
-                <th>Customer</th>
-                <th>GSTIN</th>
-                <th>Rate</th>
-                <th class="text-end">Taxable</th>
-                <th class="text-end">CGST</th>
-                <th class="text-end">SGST</th>
-                <th class="text-end">IGST</th>
-                <th class="text-end">Total</th>
+                <th style="width: 1%">#</th>
+                <th class="sortable-th" (click)="setSort('gst', 'invoiceNo')">
+                  Invoice # <i class="bi {{ sortIcon('gst', 'invoiceNo') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('gst', 'customer')">
+                  Customer <i class="bi {{ sortIcon('gst', 'customer') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('gst', 'gstin')">
+                  GSTIN <i class="bi {{ sortIcon('gst', 'gstin') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('gst', 'rate')">
+                  Rate <i class="bi {{ sortIcon('gst', 'rate') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('gst', 'subtotal')">
+                  Taxable <i class="bi {{ sortIcon('gst', 'subtotal') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('gst', 'cgst')">
+                  CGST <i class="bi {{ sortIcon('gst', 'cgst') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('gst', 'sgst')">
+                  SGST <i class="bi {{ sortIcon('gst', 'sgst') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('gst', 'igst')">
+                  IGST <i class="bi {{ sortIcon('gst', 'igst') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('gst', 'total')">
+                  Total <i class="bi {{ sortIcon('gst', 'total') }}"></i>
+                </th>
               </tr>
             </thead>
             <tbody>
-              @for (inv of gstInvoices(); track inv.id) {
+              @for (inv of pagedGst(); track inv.id; let i = $index) {
                 <tr>
+                  <td class="text-muted">{{ rowNumber(gstPage(), i) }}</td>
                   <td class="fw-semibold">{{ inv.invoiceNo }}</td>
                   <td>{{ inv.customerName || '—' }}</td>
                   <td class="text-uppercase small">{{ inv.customerGstin || '—' }}</td>
                   <td>{{ inv.gstPercent }}%</td>
-                  <td class="text-end">{{ inv.subtotal | currency }}</td>
-                  <td class="text-end">{{ inv.cgst | currency }}</td>
-                  <td class="text-end">{{ inv.sgst | currency }}</td>
-                  <td class="text-end">{{ inv.igst | currency }}</td>
-                  <td class="text-end fw-semibold">{{ inv.total | currency }}</td>
+                  <td class="text-end">{{ inv.subtotal | inr }}</td>
+                  <td class="text-end">{{ inv.cgst | inr }}</td>
+                  <td class="text-end">{{ inv.sgst | inr }}</td>
+                  <td class="text-end">{{ inv.igst | inr }}</td>
+                  <td class="text-end fw-semibold">{{ inv.total | inr }}</td>
                 </tr>
               }
             </tbody>
           </table>
+        </div>
+        <div class="px-3 pb-3 pt-1">
+          <app-pagination
+            [total]="gstInvoices().length"
+            [pageSize]="pageSize"
+            [page]="gstPage()"
+            (pageChange)="gstPage.set($event)"
+          />
         </div>
       } @else {
         <p class="text-muted text-center py-4 mb-0">No GST invoices in this period.</p>
@@ -208,62 +287,98 @@
 
 <!-- INVENTORY -->
 @if (tab() === 'inventory') {
-  <div class="row g-3 mb-3">
+  <app-day-filter
+    class="d-block mb-3"
+    [mode]="inventoryDayMode()"
+    (modeChange)="inventoryDayMode.set($event); onInventoryDayFilterChange()"
+    [selectedDate]="inventoryViewDate()"
+    (selectedDateChange)="inventoryViewDate.set($event); onInventoryDayFilterChange()"
+  />
+
+  <div class="row g-3 mb-3 page-summary">
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Distinct items</div>
-        <div class="h4 mb-0">{{ inventorySummary().items }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--primary h-100">
+        <div class="card-body">
+          <div class="stat-label">Distinct items</div>
+          <div class="stat-value">{{ inventorySummary().items }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Total units</div>
-        <div class="h4 mb-0">{{ inventorySummary().units }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--info h-100">
+        <div class="card-body">
+          <div class="stat-label">Total units</div>
+          <div class="stat-value">{{ inventorySummary().units }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Stock valuation</div>
-        <div class="h4 mb-0">{{ inventorySummary().value | currency }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--success h-100">
+        <div class="card-body">
+          <div class="stat-label">Stock valuation</div>
+          <div class="stat-value">{{ inventorySummary().value | inr }}</div>
+        </div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">Low stock items</div>
-        <div class="h4 mb-0 text-danger">{{ inventorySummary().lowCount }}</div>
-      </div></div>
+      <div class="card page-stat page-stat--danger h-100">
+        <div class="card-body">
+          <div class="stat-label">Low stock items</div>
+          <div class="stat-value">{{ inventorySummary().lowCount }}</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+  <div class="card page-main-card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span class="fw-semibold">Inventory valuation</span>
       <button class="btn btn-sm btn-outline-primary" (click)="exportInventory()" [disabled]="!inventoryRows().length">
         <i class="bi bi-download me-1"></i>Export CSV
       </button>
     </div>
     <div class="card-body p-0">
+      <div class="panel-toolbar">
+        <app-list-search
+          class="list-search-full"
+          placeholder="Search inventory…"
+          [value]="inventorySearch()"
+          (valueChange)="onSearch('inventory', $event)"
+        />
+      </div>
       @if (inventoryRows().length) {
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
               <tr>
-                <th>Part</th>
-                <th>SKU</th>
-                <th class="text-center">Qty</th>
-                <th class="text-end">Unit price</th>
-                <th class="text-end">Value</th>
+                <th style="width: 1%">#</th>
+                <th class="sortable-th" (click)="setSort('inventory', 'name')">
+                  Part <i class="bi {{ sortIcon('inventory', 'name') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('inventory', 'sku')">
+                  SKU <i class="bi {{ sortIcon('inventory', 'sku') }}"></i>
+                </th>
+                <th class="text-center sortable-th" (click)="setSort('inventory', 'quantity')">
+                  Qty <i class="bi {{ sortIcon('inventory', 'quantity') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('inventory', 'unitPrice')">
+                  Unit price <i class="bi {{ sortIcon('inventory', 'unitPrice') }}"></i>
+                </th>
+                <th class="text-end sortable-th" (click)="setSort('inventory', 'value')">
+                  Value <i class="bi {{ sortIcon('inventory', 'value') }}"></i>
+                </th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              @for (p of inventoryRows(); track p.id) {
+              @for (p of pagedInventory(); track p.id; let i = $index) {
                 <tr>
+                  <td class="text-muted">{{ rowNumber(inventoryPage(), i) }}</td>
                   <td class="fw-semibold">{{ p.name }}</td>
                   <td class="text-uppercase">{{ p.sku }}</td>
                   <td class="text-center">{{ p.quantity }}</td>
-                  <td class="text-end">{{ p.unitPrice | currency }}</td>
-                  <td class="text-end">{{ p.value | currency }}</td>
+                  <td class="text-end">{{ p.unitPrice | inr }}</td>
+                  <td class="text-end">{{ p.value | inr }}</td>
                   <td>
                     @if (p.low) {
                       <span class="badge text-bg-danger">Low</span>
@@ -276,6 +391,14 @@
             </tbody>
           </table>
         </div>
+        <div class="px-3 pb-3 pt-1">
+          <app-pagination
+            [total]="inventoryRows().length"
+            [pageSize]="pageSize"
+            [page]="inventoryPage()"
+            (pageChange)="inventoryPage.set($event)"
+          />
+        </div>
       } @else {
         <p class="text-muted text-center py-4 mb-0">No parts recorded.</p>
       }
@@ -285,32 +408,68 @@
 
 <!-- AUDIT LOG -->
 @if (tab() === 'audit') {
-  <div class="card">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+  <div class="card page-main-card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span class="fw-semibold">Stock movement audit log</span>
-      <button class="btn btn-sm btn-outline-primary" (click)="exportAudit()" [disabled]="!auditRows().length">
-        <i class="bi bi-download me-1"></i>Export CSV
-      </button>
+      <div class="d-flex flex-wrap gap-2">
+        <button
+          class="btn btn-sm btn-outline-secondary"
+          (click)="printAudit()"
+          [disabled]="!auditRows().length"
+          title="Enter or Ctrl+P to print"
+        >
+          <i class="bi bi-printer me-1"></i>Print
+        </button>
+        <button class="btn btn-sm btn-outline-primary" (click)="exportAudit()" [disabled]="!auditRows().length">
+          <i class="bi bi-download me-1"></i>Export CSV
+        </button>
+      </div>
     </div>
     <div class="card-body p-0">
+      <div class="panel-toolbar">
+        <app-list-search
+          class="list-search-full"
+          placeholder="Search audit log…"
+          [value]="auditSearch()"
+          (valueChange)="onSearch('audit', $event)"
+        />
+      </div>
       @if (auditRows().length) {
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+            <thead>
               <tr>
-                <th>Date</th>
-                <th>Part</th>
-                <th>Movement</th>
-                <th class="text-center">Qty</th>
-                <th class="text-center">Before</th>
-                <th class="text-center">After</th>
-                <th>Reason</th>
-                <th>By</th>
+                <th style="width: 1%">#</th>
+                <th class="sortable-th" (click)="setSort('audit', 'createdAt')">
+                  Date <i class="bi {{ sortIcon('audit', 'createdAt') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('audit', 'part')">
+                  Part <i class="bi {{ sortIcon('audit', 'part') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('audit', 'type')">
+                  Movement <i class="bi {{ sortIcon('audit', 'type') }}"></i>
+                </th>
+                <th class="text-center sortable-th" (click)="setSort('audit', 'quantity')">
+                  Qty <i class="bi {{ sortIcon('audit', 'quantity') }}"></i>
+                </th>
+                <th class="text-center sortable-th" (click)="setSort('audit', 'before')">
+                  Before <i class="bi {{ sortIcon('audit', 'before') }}"></i>
+                </th>
+                <th class="text-center sortable-th" (click)="setSort('audit', 'after')">
+                  After <i class="bi {{ sortIcon('audit', 'after') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('audit', 'reason')">
+                  Reason <i class="bi {{ sortIcon('audit', 'reason') }}"></i>
+                </th>
+                <th class="sortable-th" (click)="setSort('audit', 'by')">
+                  By <i class="bi {{ sortIcon('audit', 'by') }}"></i>
+                </th>
               </tr>
             </thead>
             <tbody>
-              @for (m of auditRows(); track m.id) {
+              @for (m of pagedAudit(); track m.id; let i = $index) {
                 <tr>
+                  <td class="text-muted">{{ rowNumber(auditPage(), i) }}</td>
                   <td class="small">{{ m.createdAt | date: 'dd MMM yyyy, HH:mm' }}</td>
                   <td class="fw-semibold">{{ m.partName }}</td>
                   <td><span class="badge text-uppercase {{ movementClass(m.type) }}">{{ m.type }}</span></td>
@@ -324,9 +483,18 @@
             </tbody>
           </table>
         </div>
+        <div class="px-3 pb-3 pt-1">
+          <app-pagination
+            [total]="auditRows().length"
+            [pageSize]="pageSize"
+            [page]="auditPage()"
+            (pageChange)="auditPage.set($event)"
+          />
+        </div>
       } @else {
         <p class="text-muted text-center py-4 mb-0">No stock movements in this period.</p>
       }
     </div>
   </div>
 }
+</app-page-loading>

@@ -1,65 +1,132 @@
+<app-page-loading [loading]="loading()" message="Loading customers…">
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
-  <h1 class="h3 page-title mb-0">Customers</h1>
-  <a routerLink="/customers/new" class="btn btn-primary btn-sm">
+  <div>
+    <h1 class="h3 page-title mb-0">Customers</h1>
+    <div class="page-meta">
+      <span class="meta-badge">
+        <i class="bi bi-people me-1"></i>CRM
+      </span>
+      <span class="meta-text">{{ summary().total }} customer(s)</span>
+    </div>
+  </div>
+  <button type="button" class="btn btn-primary btn-sm" (click)="openAdd()">
     <i class="bi bi-plus-lg me-1"></i>Add Customer
-  </a>
+  </button>
 </div>
 
-<div class="card">
+<div class="row g-3 mb-3 page-summary">
+  <div class="col-6 col-md-4">
+    <div class="card page-stat page-stat--primary h-100">
+      <div class="card-body">
+        <div class="stat-label">Total customers</div>
+        <div class="stat-value">{{ summary().total }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card page-stat page-stat--info h-100">
+      <div class="card-body">
+        <div class="stat-label">Registered vehicles</div>
+        <div class="stat-value">{{ summary().vehicles }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card page-stat page-stat--warning h-100">
+      <div class="card-body">
+        <div class="stat-label">Pending follow-ups</div>
+        <div class="stat-value">{{ summary().pendingFollowUps }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card page-main-card">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span class="fw-semibold">Customer directory</span>
+    <span class="small text-muted">{{ filtered().length }} shown</span>
+  </div>
   <div class="card-body">
-    <div class="input-group mb-3" style="max-width: 24rem">
-      <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input
-        type="text"
-        class="form-control"
-        placeholder="Search by name, phone or email"
-        [ngModel]="search()"
-        (ngModelChange)="search.set($event)"
+    <div class="table-toolbar mb-3">
+      <app-list-search
+        placeholder="Search name, phone or email…"
+        [value]="search()"
+        (valueChange)="onSearch($event)"
       />
     </div>
 
-    @if (filtered().length) {
+    @if (paged().length) {
       <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead class="table-light">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
             <tr>
-              <th>Name</th>
-              <th class="d-none d-md-table-cell">Phone</th>
-              <th class="d-none d-lg-table-cell">Email</th>
-              <th class="d-none d-lg-table-cell">Address</th>
-              <th class="text-end">Actions</th>
+              <th class="col-row-num">#</th>
+              <th class="sortable" (click)="setSort('name')">
+                Name <i class="bi {{ sortIcon('name') }}"></i>
+              </th>
+              <th class="sortable d-none d-md-table-cell" (click)="setSort('phone')">
+                Phone <i class="bi {{ sortIcon('phone') }}"></i>
+              </th>
+              <th class="sortable text-center" (click)="setSort('vehicles')">
+                Vehicles <i class="bi {{ sortIcon('vehicles') }}"></i>
+              </th>
+              <th class="sortable text-center d-none d-lg-table-cell" (click)="setSort('jobs')">
+                Jobs <i class="bi {{ sortIcon('jobs') }}"></i>
+              </th>
+              <th class="sortable text-center" (click)="setSort('followUps')">
+                Follow-ups <i class="bi {{ sortIcon('followUps') }}"></i>
+              </th>
+              <th class="sortable d-none d-lg-table-cell" (click)="setSort('lastVisit')">
+                Last visit <i class="bi {{ sortIcon('lastVisit') }}"></i>
+              </th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            @for (customer of filtered(); track customer.id) {
+            @for (row of paged(); track row.customer.id; let i = $index) {
               <tr>
+                <td class="text-muted">{{ rowNumber(i) }}</td>
                 <td>
-                  <div class="fw-semibold">{{ customer.name }}</div>
-                  <div class="small text-muted d-md-none">{{ customer.phone }}</div>
+                  <div class="fw-semibold">{{ row.customer.name }}</div>
+                  <div class="small text-muted d-md-none">{{ row.customer.phone }}</div>
                 </td>
-                <td class="d-none d-md-table-cell">{{ customer.phone }}</td>
-                <td class="d-none d-lg-table-cell">{{ customer.email || '—' }}</td>
-                <td class="d-none d-lg-table-cell">{{ customer.address || '—' }}</td>
-                <td class="text-end text-nowrap">
+                <td class="d-none d-md-table-cell">{{ row.customer.phone }}</td>
+                <td class="text-center">{{ row.vehicleCount }}</td>
+                <td class="text-center d-none d-lg-table-cell">{{ row.jobCount }}</td>
+                <td class="text-center">
+                  @if (row.pendingFollowUps) {
+                    <span class="badge text-bg-warning">{{ row.pendingFollowUps }}</span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="d-none d-lg-table-cell">
+                  @if (row.lastVisit) {
+                    {{ row.lastVisit | date: 'dd MMM yyyy' }}
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-end">
                   <a
-                    [routerLink]="['/customers', customer.id, 'edit']"
-                    class="btn btn-sm btn-outline-secondary"
-                    title="Edit"
+                    [routerLink]="['/customers', row.customer.id]"
+                    class="btn btn-sm btn-outline-primary"
                   >
-                    <i class="bi bi-pencil"></i>
+                    <i class="bi bi-eye me-1"></i>View
                   </a>
-                  <button
-                    class="btn btn-sm btn-outline-danger ms-1"
-                    title="Delete"
-                    (click)="remove(customer.id, customer.name)"
-                  >
-                    <i class="bi bi-trash"></i>
-                  </button>
                 </td>
               </tr>
             }
           </tbody>
         </table>
+      </div>
+      <div class="pt-3">
+        <app-pagination
+          [total]="filtered().length"
+          [pageSize]="pageSize"
+          [page]="page()"
+          (pageChange)="page.set($event)"
+        />
       </div>
     } @else {
       <div class="text-center text-muted py-5">
@@ -69,3 +136,78 @@
     }
   </div>
 </div>
+</app-page-loading>
+
+@if (showAddModal()) {
+  <div class="modal fade show d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <form [formGroup]="addForm" (ngSubmit)="saveCustomer()" appFormKeyboard novalidate>
+          <div class="modal-header">
+            <h5 class="modal-title">Add Customer &amp; Vehicle</h5>
+            <button type="button" class="btn-close" (click)="closeAdd()"></button>
+          </div>
+          <div class="modal-body row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custName">Customer name <span class="text-danger">*</span></label>
+              <input
+                id="custName"
+                type="text"
+                class="form-control"
+                formControlName="name"
+                placeholder="Customer full name"
+                [class.is-invalid]="invalid('name')"
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custPhone">Phone <span class="text-danger">*</span></label>
+              <input
+                id="custPhone"
+                type="tel"
+                class="form-control"
+                formControlName="phone"
+                placeholder="10-digit mobile number"
+                [class.is-invalid]="invalid('phone')"
+                (input)="onPhoneInput($event)"
+                maxlength="10"
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custEmail">Email</label>
+              <input id="custEmail" type="email" class="form-control" formControlName="email" placeholder="email@example.com" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custReg">Registration no. <span class="text-danger">*</span></label>
+              <input
+                id="custReg"
+                type="text"
+                class="form-control"
+                formControlName="registrationNo"
+                placeholder="e.g. MH12AB1234"
+                [class.is-invalid]="invalid('registrationNo')"
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custMake">Make</label>
+              <input id="custMake" type="text" class="form-control" formControlName="make" placeholder="e.g. Honda" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custModel">Model</label>
+              <input id="custModel" type="text" class="form-control" formControlName="model" placeholder="e.g. City" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeAdd()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="saving()">
+              @if (saving()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+              }
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show"></div>
+}

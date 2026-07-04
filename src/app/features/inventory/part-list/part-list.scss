@@ -1,0 +1,43 @@
+.inventory-alert-card {
+  border: none;
+  border-radius: 0.75rem;
+  border-left: 4px solid #f59e0b;
+  background: linear-gradient(135deg, #fffbeb 0%, #fff 55%);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  margin-bottom: 1rem;
+
+  .alert-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: 0.35rem;
+  }
+
+  .alert-desc {
+    font-size: 0.72rem;
+    color: #78716c;
+    margin-bottom: 0.65rem;
+  }
+}
+
+.inventory-page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.35rem;
+
+  .live-badge {
+    font-size: 0.68rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+  }
+
+  .value-text {
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+}

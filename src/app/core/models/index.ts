@@ -1,12 +1,7 @@
 export interface AppUser {
-  id?: string;
   name: string;
-  email: string;
-  // NOTE: This project uses simple, plain-text password auth by request.
-  // Do not use this pattern for anything that handles real, sensitive data.
-  password: string;
+  username: string;
   role: 'admin' | 'staff';
-  createdAt?: number;
 }
 
 export interface Customer {
@@ -16,6 +11,22 @@ export interface Customer {
   email?: string;
   address?: string;
   createdAt?: number;
+}
+
+export type FollowUpStatus = 'pending' | 'done';
+
+export interface CustomerFollowUp {
+  id?: string;
+  customerId: string;
+  customerName?: string;
+  vehicleId?: string;
+  vehicleLabel?: string;
+  note: string;
+  dueDate: string;
+  status: FollowUpStatus;
+  createdBy?: string;
+  createdAt?: number;
+  completedAt?: number;
 }
 
 export interface Vehicle {
@@ -78,6 +89,7 @@ export interface InvoiceItem {
   description: string;
   quantity: number;
   unitPrice: number;
+  partId?: string;
 }
 
 export type InvoiceStatus = 'unpaid' | 'paid' | 'partial';

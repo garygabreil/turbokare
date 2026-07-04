@@ -1,0 +1,39 @@
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(70vh, 32rem);
+  padding: 2rem 1rem;
+  width: 100%;
+}
+
+.page-loading__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.page-loading__spinner {
+  width: 3rem;
+  height: 3rem;
+  border-width: 0.3rem;
+}
+
+.page-loading__text {
+  color: #64748b;
+  font-size: 0.9375rem;
+}
+
+@media (max-width: 576px) {
+  .page-loading {
+    min-height: 60vh;
+  }
+
+  .page-loading__spinner {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-width: 0.35rem;
+  }
+}

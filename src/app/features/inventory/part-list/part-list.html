@@ -1,11 +1,14 @@
+<app-page-loading [loading]="loading()" message="Loading inventory…">
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
   <div>
     <h1 class="h3 page-title mb-0">Inventory / Parts</h1>
-    <div class="small text-muted">
-      <span class="badge text-bg-light border">
-        <i class="bi bi-broadcast text-success me-1"></i>Live stock
+    <div class="inventory-page-meta">
+      <span class="live-badge">
+        <i class="bi bi-broadcast me-1"></i>Live stock
       </span>
-      Total stock value: <span class="fw-semibold">{{ totalValue() | currency }}</span>
+      <span class="value-text">
+        Total stock value: <span class="fw-semibold text-dark">{{ totalValue() | inr }}</span>
+      </span>
     </div>
   </div>
   <a routerLink="/inventory/new" class="btn btn-primary btn-sm">
@@ -13,47 +16,132 @@
   </a>
 </div>
 
-<div class="card">
+<div class="row g-3 mb-3 page-summary">
+  <div class="col-6 col-md-4">
+    <div class="card page-stat page-stat--primary h-100">
+      <div class="card-body">
+        <div class="stat-label">Total parts</div>
+        <div class="stat-value">{{ totalParts() }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card page-stat page-stat--warning h-100">
+      <div class="card-body">
+        <div class="stat-label">Low stock (&lt; {{ lowStockThreshold }})</div>
+        <div class="stat-value">{{ lowStockParts().length }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card page-stat page-stat--money h-100">
+      <div class="card-body">
+        <div class="stat-label">Stock valuation</div>
+        <div class="stat-value">{{ totalValue() | inr }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (lowStockParts().length) {
+  <div class="inventory-alert-card p-3">
+    <div class="d-flex align-items-start gap-2">
+      <i class="bi bi-exclamation-triangle-fill text-warning fs-5 mt-1"></i>
+      <div class="flex-grow-1">
+        <div class="alert-title">Low stock alert</div>
+        <p class="alert-desc mb-0">
+          Parts with less than {{ lowStockThreshold }} units in stock:
+        </p>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm mb-0 align-middle">
+            <thead>
+              <tr>
+                <th style="width: 1%">#</th>
+                <th>Part</th>
+                <th class="text-end">Stock</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (part of lowStockParts(); track part.id; let i = $index) {
+                <tr>
+                  <td class="text-muted">{{ i + 1 }}</td>
+                  <td>
+                    <span class="fw-semibold">{{ part.name }}</span>
+                    <span class="text-muted">({{ part.sku }})</span>
+                  </td>
+                  <td class="text-end fw-semibold text-danger">{{ part.quantity }} left</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<app-day-filter
+  [mode]="dayMode()"
+  (modeChange)="dayMode.set($event); onDayFilterChange()"
+  [selectedDate]="viewDate()"
+  (selectedDateChange)="viewDate.set($event); onDayFilterChange()"
+/>
+
+<div class="card page-main-card">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span class="fw-semibold">Parts list</span>
+    <span class="small text-muted">{{ filtered().length }} item(s)</span>
+  </div>
   <div class="card-body">
-    <div class="input-group mb-3" style="max-width: 24rem">
-      <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input
-        type="text"
-        class="form-control"
-        placeholder="Search by name, SKU or category"
-        [ngModel]="search()"
-        (ngModelChange)="search.set($event)"
+    <div class="table-toolbar">
+      <span class="small text-muted">Click column headers to sort</span>
+      <app-list-search
+        placeholder="Search name, SKU or category…"
+        [value]="search()"
+        (valueChange)="onSearch($event)"
       />
     </div>
 
     @if (filtered().length) {
       <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead class="table-light">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
             <tr>
-              <th>Part</th>
-              <th class="d-none d-md-table-cell">SKU</th>
-              <th class="d-none d-lg-table-cell">Category</th>
-              <th class="text-end">Price</th>
-              <th class="text-center">Stock</th>
+              <th style="width: 1%">#</th>
+              <th class="sortable-th" (click)="setSort('name')">
+                Part <i class="bi {{ sortIcon('name') }}"></i>
+              </th>
+              <th class="d-none d-md-table-cell sortable-th" (click)="setSort('sku')">
+                SKU <i class="bi {{ sortIcon('sku') }}"></i>
+              </th>
+              <th class="d-none d-lg-table-cell sortable-th" (click)="setSort('category')">
+                Category <i class="bi {{ sortIcon('category') }}"></i>
+              </th>
+              <th class="text-end sortable-th" (click)="setSort('price')">
+                Price (₹) <i class="bi {{ sortIcon('price') }}"></i>
+              </th>
+              <th class="text-center sortable-th" (click)="setSort('quantity')">
+                Stock <i class="bi {{ sortIcon('quantity') }}"></i>
+              </th>
               <th class="text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
-            @for (part of filtered(); track part.id) {
+            @for (part of paged(); track part.id; let i = $index) {
               <tr>
+                <td class="text-muted">{{ rowNumber(i) }}</td>
                 <td class="fw-semibold">{{ part.name }}</td>
                 <td class="d-none d-md-table-cell text-uppercase">{{ part.sku }}</td>
                 <td class="d-none d-lg-table-cell">{{ part.category || '—' }}</td>
-                <td class="text-end">{{ part.unitPrice | currency }}</td>
+                <td class="text-end">{{ part.unitPrice | inr }}</td>
                 <td class="text-center">
                   <span
                     class="badge rounded-pill"
-                    [class.text-bg-danger]="isLow(part.quantity, part.reorderLevel)"
-                    [class.text-bg-success]="!isLow(part.quantity, part.reorderLevel)"
+                    [class.text-bg-danger]="isLow(part.quantity)"
+                    [class.text-bg-success]="!isLow(part.quantity)"
                   >
                     {{ part.quantity }}
-                    @if (isLow(part.quantity, part.reorderLevel)) {
+                    @if (isLow(part.quantity)) {
                       <i class="bi bi-exclamation-triangle-fill ms-1"></i>
                     }
                   </span>
@@ -93,6 +181,13 @@
           </tbody>
         </table>
       </div>
+
+      <app-pagination
+        [total]="filtered().length"
+        [pageSize]="pageSize"
+        [page]="page()"
+        (pageChange)="page.set($event)"
+      />
     } @else {
       <div class="text-center text-muted py-5">
         <i class="bi bi-box-seam" style="font-size: 2.5rem"></i>
@@ -101,12 +196,14 @@
     }
   </div>
 </div>
+</app-page-loading>
 
 <!-- Stock adjustment modal -->
 @if (selectedPart(); as part) {
   <div class="modal fade show d-block" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
+        <form (ngSubmit)="submitAdjust()" appFormKeyboard novalidate>
         <div class="modal-header">
           <h5 class="modal-title">
             @switch (adjustType()) {
@@ -141,6 +238,7 @@
               [ngModel]="adjustQty()"
               (ngModelChange)="adjustQty.set($event)"
               min="0"
+              placeholder="Enter quantity"
             />
           </div>
 
@@ -152,7 +250,7 @@
               class="form-control"
               [ngModel]="adjustReason()"
               (ngModelChange)="adjustReason.set($event)"
-              placeholder="e.g. Purchase, used on job, stocktake"
+              placeholder="e.g. purchase, used on job, stocktake"
             />
           </div>
         </div>
@@ -160,13 +258,14 @@
           <button type="button" class="btn btn-outline-secondary" (click)="closeAdjust()">
             Cancel
           </button>
-          <button type="button" class="btn btn-primary" (click)="submitAdjust()" [disabled]="saving()">
+          <button type="submit" class="btn btn-primary" [disabled]="saving()">
             @if (saving()) {
               <span class="spinner-border spinner-border-sm me-2"></span>
             }
             Confirm
           </button>
         </div>
+        </form>
       </div>
     </div>
   </div>

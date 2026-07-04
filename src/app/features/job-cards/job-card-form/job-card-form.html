@@ -1,3 +1,4 @@
+<app-page-loading [loading]="loading()" message="Loading job card…">
 <div class="d-flex align-items-center gap-2 mb-4">
   <a routerLink="/job-cards" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
@@ -7,35 +8,47 @@
 
 <div class="card">
   <div class="card-body">
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="row g-3">
+    <form [formGroup]="form" (ngSubmit)="submit()" appFormKeyboard novalidate class="row g-3">
       <div class="col-12 col-md-6">
-        <label class="form-label" for="vehicleId">Vehicle <span class="text-danger">*</span></label>
-        <select
-          id="vehicleId"
-          class="form-select"
-          formControlName="vehicleId"
-          [class.is-invalid]="invalid('vehicleId')"
-        >
-          <option value="">Select vehicle…</option>
-          @for (vehicle of vehicles(); track vehicle.id) {
-            <option [value]="vehicle.id">
-              {{ vehicle.registrationNo }} — {{ vehicle.make }} {{ vehicle.model }} ({{ vehicle.customerName }})
-            </option>
-          }
-        </select>
-        @if (invalid('vehicleId')) {
-          <div class="invalid-feedback">Please select a vehicle.</div>
+        <div class="d-flex justify-content-between align-items-center">
+          <label class="form-label mb-0" for="vehicleSearch">
+            Vehicle <span class="text-danger">*</span>
+          </label>
+          <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" (click)="openAddCustomer()">
+            <i class="bi bi-plus-lg me-1"></i>New customer
+          </button>
+        </div>
+        <div class="mt-1">
+          <app-searchable-select
+            inputId="vehicleSearch"
+            placeholder="Search reg no, make or owner…"
+            [options]="vehicleOptions()"
+            [value]="matchedId()"
+            [invalid]="invalid('vehicleId')"
+            (valueChange)="onVehicleValue($event)"
+            (searchChange)="onVehicleSearch($event)"
+          />
+        </div>
+        @if (invalid('vehicleId') && !noMatch()) {
+          <div class="invalid-feedback">Please pick a vehicle from the list.</div>
         }
-        @if (!vehicles().length) {
-          <div class="form-text text-warning">
-            No vehicles yet. <a routerLink="/vehicles/new">Add one first</a>.
+        @if (noMatch()) {
+          <div class="d-flex align-items-center flex-wrap gap-2 mt-2">
+            <span class="text-danger small"><i class="bi bi-exclamation-circle me-1"></i>Customer not found.</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="openAddCustomer()">
+              <i class="bi bi-person-plus me-1"></i>Add customer
+            </button>
+          </div>
+        } @else if (!vehicles().length) {
+          <div class="form-text text-muted mt-1">
+            No vehicles yet — type a name or reg number, then add a customer.
           </div>
         }
       </div>
 
       <div class="col-12 col-md-6">
         <label class="form-label" for="assignedTo">Assigned mechanic</label>
-        <input id="assignedTo" type="text" class="form-control" formControlName="assignedTo" />
+        <input id="assignedTo" type="text" class="form-control" formControlName="assignedTo" placeholder="Mechanic name" />
       </div>
 
       <div class="col-12">
@@ -45,8 +58,9 @@
         <textarea
           id="complaint"
           rows="2"
-          class="form-control"
+          class="form-control text-uppercase"
           formControlName="complaint"
+          placeholder="Describe the issue or work required…"
           [class.is-invalid]="invalid('complaint')"
         ></textarea>
         @if (invalid('complaint')) {
@@ -65,14 +79,19 @@
       </div>
 
       <div class="col-6 col-md-4">
-        <label class="form-label" for="estimatedCost">Estimated cost</label>
-        <input
-          id="estimatedCost"
-          type="number"
-          class="form-control"
-          formControlName="estimatedCost"
-          [class.is-invalid]="invalid('estimatedCost')"
-        />
+        <label class="form-label" for="estimatedCost">Estimated cost (₹)</label>
+        <div class="input-group">
+          <span class="input-group-text">₹</span>
+          <input
+            id="estimatedCost"
+            type="number"
+            step="0.01"
+            class="form-control"
+            formControlName="estimatedCost"
+            placeholder="0.00"
+            [class.is-invalid]="invalid('estimatedCost')"
+          />
+        </div>
         @if (invalid('estimatedCost')) {
           <div class="invalid-feedback">Must be zero or more.</div>
         }
@@ -80,7 +99,7 @@
 
       <div class="col-12">
         <label class="form-label" for="notes">Notes</label>
-        <textarea id="notes" rows="2" class="form-control" formControlName="notes"></textarea>
+        <textarea id="notes" rows="2" class="form-control" formControlName="notes" placeholder="Additional notes (optional)"></textarea>
       </div>
 
       <div class="col-12 d-flex gap-2">
@@ -95,3 +114,99 @@
     </form>
   </div>
 </div>
+</app-page-loading>
+
+@if (showAddModal()) {
+  <div class="modal fade show d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <form [formGroup]="customerForm" (ngSubmit)="saveCustomer()" appFormKeyboard novalidate>
+          <div class="modal-header">
+            <h5 class="modal-title">Add Customer &amp; Vehicle</h5>
+            <button type="button" class="btn-close" aria-label="Close" (click)="closeAddCustomer()"></button>
+          </div>
+          <div class="modal-body row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custName">Customer name <span class="text-danger">*</span></label>
+              <input
+                id="custName"
+                type="text"
+                class="form-control text-uppercase"
+                formControlName="name"
+                placeholder="Customer full name"
+                [class.is-invalid]="customerInvalid('name')"
+              />
+              @if (customerInvalid('name')) {
+                <div class="invalid-feedback">Name is required.</div>
+              }
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custPhone">Phone <span class="text-danger">*</span></label>
+              <input
+                id="custPhone"
+                type="tel"
+                inputmode="numeric"
+                maxlength="10"
+                class="form-control"
+                formControlName="phone"
+                placeholder="10-digit mobile number"
+                (input)="onPhoneInput($event)"
+                [class.is-invalid]="customerInvalid('phone')"
+              />
+              @if (customerInvalid('phone')) {
+                <div class="invalid-feedback">Enter a valid 10-digit phone number.</div>
+              }
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="custEmail">Email</label>
+              <input
+                id="custEmail"
+                type="email"
+                class="form-control text-none"
+                formControlName="email"
+                placeholder="email@example.com"
+                [class.is-invalid]="customerInvalid('email')"
+              />
+              @if (customerInvalid('email')) {
+                <div class="invalid-feedback">Enter a valid email address.</div>
+              }
+            </div>
+            <div class="col-12"><hr class="my-1" /></div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="custReg">Registration no <span class="text-danger">*</span></label>
+              <input
+                id="custReg"
+                type="text"
+                class="form-control text-uppercase"
+                formControlName="registrationNo"
+                placeholder="e.g. MH12AB1234"
+                [class.is-invalid]="customerInvalid('registrationNo')"
+              />
+              @if (customerInvalid('registrationNo')) {
+                <div class="invalid-feedback">Registration number is required.</div>
+              }
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="custMake">Make</label>
+              <input id="custMake" type="text" class="form-control text-uppercase" formControlName="make" placeholder="e.g. Honda" />
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="custModel">Model</label>
+              <input id="custModel" type="text" class="form-control text-uppercase" formControlName="model" placeholder="e.g. City" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeAddCustomer()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="savingCustomer()">
+              @if (savingCustomer()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+              }
+              Save &amp; select
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show"></div>
+}

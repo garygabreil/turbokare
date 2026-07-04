@@ -12,7 +12,7 @@ import {
   query,
   updateDoc,
 } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay } from 'rxjs';
 
 /**
  * Generic Firestore CRUD helper. Extend it with a concrete entity type and
@@ -21,14 +21,20 @@ import { Observable } from 'rxjs';
 export abstract class FirestoreCrudService<T extends { id?: string }> {
   protected readonly firestore = inject(Firestore);
   protected readonly ref: CollectionReference;
+  private listCache: Observable<T[]> | null = null;
 
   protected constructor(protected readonly collectionName: string) {
     this.ref = collection(this.firestore, collectionName);
   }
 
   list(): Observable<T[]> {
-    const q = query(this.ref, orderBy('createdAt', 'desc'));
-    return collectionData(q, { idField: 'id' }) as Observable<T[]>;
+    if (!this.listCache) {
+      const q = query(this.ref, orderBy('createdAt', 'desc'));
+      this.listCache = (collectionData(q, { idField: 'id' }) as Observable<T[]>).pipe(
+        shareReplay({ bufferSize: 1, refCount: true }),
+      );
+    }
+    return this.listCache;
   }
 
   get(id: string): Observable<T> {

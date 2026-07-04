@@ -1,3 +1,4 @@
+<app-page-loading [loading]="loading()" message="Loading part…">
 <div class="d-flex align-items-center gap-2 mb-4">
   <a routerLink="/inventory" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
@@ -7,7 +8,7 @@
 
 <div class="card">
   <div class="card-body">
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="row g-3">
+    <form [formGroup]="form" (ngSubmit)="submit()" appFormKeyboard novalidate class="row g-3">
       <div class="col-12 col-md-6">
         <label class="form-label" for="name">Part name <span class="text-danger">*</span></label>
         <input
@@ -15,6 +16,7 @@
           type="text"
           class="form-control"
           formControlName="name"
+          placeholder="e.g. brake pad, engine oil"
           [class.is-invalid]="invalid('name')"
         />
         @if (invalid('name')) {
@@ -29,6 +31,7 @@
           type="text"
           class="form-control text-uppercase"
           formControlName="sku"
+          placeholder="e.g. BP-001"
           [class.is-invalid]="invalid('sku')"
         />
         @if (invalid('sku')) {
@@ -38,49 +41,40 @@
 
       <div class="col-12 col-md-6">
         <label class="form-label" for="category">Category</label>
-        <input id="category" type="text" class="form-control" formControlName="category" />
+        <input id="category" type="text" class="form-control" formControlName="category" placeholder="e.g. filters, brakes" />
       </div>
 
       <div class="col-12 col-md-6">
-        <label class="form-label" for="unitPrice">Unit price <span class="text-danger">*</span></label>
-        <input
-          id="unitPrice"
-          type="number"
-          step="0.01"
-          class="form-control"
-          formControlName="unitPrice"
-          [class.is-invalid]="invalid('unitPrice')"
-        />
+        <label class="form-label" for="unitPrice">Unit price (₹) <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <span class="input-group-text">₹</span>
+          <input
+            id="unitPrice"
+            type="number"
+            step="0.01"
+            class="form-control"
+            formControlName="unitPrice"
+            placeholder="0.00"
+            [class.is-invalid]="invalid('unitPrice')"
+          />
+        </div>
         @if (invalid('unitPrice')) {
           <div class="invalid-feedback">Enter a valid price.</div>
         }
       </div>
 
-      <div class="col-6">
+      <div class="col-12 col-md-6">
         <label class="form-label" for="quantity">Quantity in stock <span class="text-danger">*</span></label>
         <input
           id="quantity"
           type="number"
           class="form-control"
           formControlName="quantity"
+          placeholder="0"
           [class.is-invalid]="invalid('quantity')"
         />
         @if (invalid('quantity')) {
           <div class="invalid-feedback">Enter a valid quantity.</div>
-        }
-      </div>
-
-      <div class="col-6">
-        <label class="form-label" for="reorderLevel">Reorder level <span class="text-danger">*</span></label>
-        <input
-          id="reorderLevel"
-          type="number"
-          class="form-control"
-          formControlName="reorderLevel"
-          [class.is-invalid]="invalid('reorderLevel')"
-        />
-        @if (invalid('reorderLevel')) {
-          <div class="invalid-feedback">Enter a valid reorder level.</div>
         }
       </div>
 
@@ -96,3 +90,4 @@
     </form>
   </div>
 </div>
+</app-page-loading>

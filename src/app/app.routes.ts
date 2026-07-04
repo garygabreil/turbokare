@@ -8,11 +8,6 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
   },
   {
-    path: 'register',
-    canActivate: [guestGuard],
-    loadComponent: () => import('./features/auth/register/register').then((m) => m.Register),
-  },
-  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./layout/shell/shell').then((m) => m.Shell),
@@ -21,36 +16,6 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
-      },
-      {
-        path: 'customers',
-        loadComponent: () =>
-          import('./features/customers/customer-list/customer-list').then((m) => m.CustomerList),
-      },
-      {
-        path: 'customers/new',
-        loadComponent: () =>
-          import('./features/customers/customer-form/customer-form').then((m) => m.CustomerForm),
-      },
-      {
-        path: 'customers/:id/edit',
-        loadComponent: () =>
-          import('./features/customers/customer-form/customer-form').then((m) => m.CustomerForm),
-      },
-      {
-        path: 'vehicles',
-        loadComponent: () =>
-          import('./features/vehicles/vehicle-list/vehicle-list').then((m) => m.VehicleList),
-      },
-      {
-        path: 'vehicles/new',
-        loadComponent: () =>
-          import('./features/vehicles/vehicle-form/vehicle-form').then((m) => m.VehicleForm),
-      },
-      {
-        path: 'vehicles/:id/edit',
-        loadComponent: () =>
-          import('./features/vehicles/vehicle-form/vehicle-form').then((m) => m.VehicleForm),
       },
       {
         path: 'job-cards',
@@ -66,6 +31,16 @@ export const routes: Routes = [
         path: 'job-cards/:id/edit',
         loadComponent: () =>
           import('./features/job-cards/job-card-form/job-card-form').then((m) => m.JobCardForm),
+      },
+      {
+        path: 'customers',
+        loadComponent: () =>
+          import('./features/customers/customer-list/customer-list').then((m) => m.CustomerList),
+      },
+      {
+        path: 'customers/:id',
+        loadComponent: () =>
+          import('./features/customers/customer-detail/customer-detail').then((m) => m.CustomerDetail),
       },
       {
         path: 'inventory',
@@ -91,6 +66,11 @@ export const routes: Routes = [
         path: 'invoices/new',
         loadComponent: () =>
           import('./features/invoices/invoice-form/invoice-form').then((m) => m.InvoiceForm),
+      },
+      {
+        path: 'invoices/:id/print',
+        loadComponent: () =>
+          import('./features/invoices/invoice-print/invoice-print').then((m) => m.InvoicePrint),
       },
       {
         path: 'invoices/:id/edit',

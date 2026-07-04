@@ -2,32 +2,36 @@
   <div class="card p-4 p-sm-5 w-100" style="max-width: 26rem">
     <div class="text-center mb-4">
       <i class="bi bi-wrench-adjustable-circle text-primary" style="font-size: 2.5rem"></i>
-      <h1 class="h4 mt-2 page-title">Garage Manager</h1>
-      <p class="text-muted small mb-0">Sign in to your account</p>
+      <h1 class="h4 mt-2 page-title app-brand">JG GaragePro</h1>
+      <p class="text-muted small mb-0 auth-hint">Sign in to your account</p>
     </div>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <form [formGroup]="form" (ngSubmit)="submit()" appFormKeyboard novalidate>
+      @if (authError()) {
+        <div class="alert alert-danger py-2 small auth-hint" role="alert">
+          {{ authError() }}
+        </div>
+      }
+
       <div class="mb-3">
-        <label class="form-label" for="email">Email</label>
+        <label class="form-label" for="username">Username</label>
         <div class="input-group">
-          <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
           <input
-            id="email"
-            type="email"
+            id="username"
+            type="text"
             class="form-control"
-            formControlName="email"
-            [class.is-invalid]="invalid('email')"
-            placeholder="you@example.com"
+            formControlName="username"
+            placeholder="Enter username"
+            [class.is-invalid]="invalid('username')"
+            autocomplete="username"
+            autocapitalize="off"
+            spellcheck="false"
+            autofocus
           />
         </div>
-        @if (invalid('email')) {
-          <div class="invalid-feedback">
-            @if (form.get('email')?.errors?.['required']) {
-              Email is required.
-            } @else {
-              Enter a valid email address.
-            }
-          </div>
+        @if (invalid('username')) {
+          <div class="invalid-feedback d-block auth-hint">{{ errorMessage('username') }}</div>
         }
       </div>
 
@@ -40,18 +44,15 @@
             type="password"
             class="form-control"
             formControlName="password"
+            placeholder="Enter password"
             [class.is-invalid]="invalid('password')"
-            placeholder="Your password"
+            autocomplete="current-password"
+            autocapitalize="off"
+            spellcheck="false"
           />
         </div>
         @if (invalid('password')) {
-          <div class="invalid-feedback">
-            @if (form.get('password')?.errors?.['required']) {
-              Password is required.
-            } @else {
-              Password must be at least 4 characters.
-            }
-          </div>
+          <div class="invalid-feedback d-block auth-hint">{{ errorMessage('password') }}</div>
         }
       </div>
 
@@ -63,9 +64,14 @@
       </button>
     </form>
 
-    <p class="text-center text-muted small mt-4 mb-0">
-      Don't have an account?
-      <a routerLink="/register" class="text-decoration-none">Create one</a>
+    <p class="text-center text-muted small mt-4 mb-0 auth-hint">
+      Use <span class="fw-semibold">admin</span> / <span class="fw-semibold">admin</span> to sign
+      in.
+      <span class="d-block mt-1">Press <kbd>Enter</kbd> to move to the next field or sign in.</span>
     </p>
   </div>
+
+  <footer class="app-footer app-footer--auth">
+    © {{ year }} Mdleware Software Solutions. All rights reserved.
+  </footer>
 </div>

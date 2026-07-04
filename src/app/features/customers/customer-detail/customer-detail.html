@@ -1,0 +1,554 @@
+<app-page-loading [loading]="loading()" message="Loading customer…">
+  @if (customer(); as cust) {
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
+      <div class="d-flex align-items-center gap-2 min-w-0">
+        <a routerLink="/customers" class="btn btn-sm btn-outline-secondary flex-shrink-0">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div class="min-w-0">
+          <h1 class="h3 page-title mb-0 text-truncate">{{ cust.name }}</h1>
+          <div class="page-meta">
+            <span class="meta-badge">
+              <i class="bi bi-person-vcard me-1"></i>Customer profile
+            </span>
+            <span class="meta-text">{{ cust.phone }}</span>
+          </div>
+        </div>
+      </div>
+      <a routerLink="/job-cards/new" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>New Job Card
+      </a>
+    </div>
+
+    <div class="row g-3 mb-3 page-summary">
+      <div class="col-6 col-md-3">
+        <div class="card page-stat page-stat--info h-100">
+          <div class="card-body">
+            <div class="stat-label">Vehicles</div>
+            <div class="stat-value">{{ summary().vehicles }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card page-stat page-stat--primary h-100">
+          <div class="card-body">
+            <div class="stat-label">Service jobs</div>
+            <div class="stat-value">{{ summary().jobs }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card page-stat page-stat--money h-100">
+          <div class="card-body">
+            <div class="stat-label">Total spent</div>
+            <div class="stat-value">{{ summary().spent | inr }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card page-stat page-stat--warning h-100">
+          <div class="card-body">
+            <div class="stat-label">Pending follow-ups</div>
+            <div class="stat-value">{{ summary().pendingFollowUps }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card page-main-card mb-3">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-semibold">Registered vehicles</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="openAddVehicle()">
+          <i class="bi bi-plus-lg me-1"></i>Add vehicle
+        </button>
+      </div>
+      <div class="card-body p-0">
+        @if (customerVehicles().length) {
+          <div class="d-md-none vehicle-cards-mobile p-3 pt-2">
+            @for (v of customerVehicles(); track v.id) {
+              <button
+                type="button"
+                class="vehicle-card-item w-100 text-start"
+                (click)="openVehicle(v)"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <div class="vehicle-card-item__reg">{{ v.registrationNo }}</div>
+                    <div class="vehicle-card-item__meta">
+                      {{ v.make }} {{ v.model }}
+                      @if (v.color) {
+                        · {{ v.color }}
+                      }
+                    </div>
+                  </div>
+                  <div class="text-end flex-shrink-0">
+                    <span class="badge text-bg-light border">{{ vehicleJobCount(v.id) }} job(s)</span>
+                    <i class="bi bi-chevron-right d-block mt-1 text-muted"></i>
+                  </div>
+                </div>
+              </button>
+            }
+          </div>
+          <div class="table-responsive d-none d-md-block">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Registration</th>
+                  <th>Make / Model</th>
+                  <th class="d-none d-lg-table-cell">Color</th>
+                  <th class="text-center">Jobs</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (v of customerVehicles(); track v.id) {
+                  <tr
+                    class="cursor-pointer vehicle-row"
+                    tabindex="0"
+                    role="button"
+                    (click)="openVehicle(v)"
+                    (keydown.enter)="openVehicle(v)"
+                  >
+                    <td class="fw-semibold">{{ v.registrationNo }}</td>
+                    <td>{{ v.make }} {{ v.model }}</td>
+                    <td class="d-none d-lg-table-cell">{{ v.color || '—' }}</td>
+                    <td class="text-center">{{ vehicleJobCount(v.id) }}</td>
+                    <td class="text-end text-muted">
+                      <i class="bi bi-chevron-right"></i>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="text-center text-muted py-4 px-3">
+            <i class="bi bi-car-front" style="font-size: 2rem"></i>
+            <p class="mt-2 mb-3">No vehicles linked to this customer yet.</p>
+            <button type="button" class="btn btn-sm btn-primary" (click)="openAddVehicle()">
+              <i class="bi bi-plus-lg me-1"></i>Register a vehicle
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-4">
+        <div class="card page-main-card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Contact details</span>
+            @if (!editing()) {
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="startEdit()">
+                <i class="bi bi-pencil"></i>
+              </button>
+            }
+          </div>
+          <div class="card-body">
+            @if (editing()) {
+              <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" appFormKeyboard novalidate class="row g-2">
+                <div class="col-12">
+                  <label class="form-label" for="name">Name</label>
+                  <input id="name" type="text" class="form-control form-control-sm" formControlName="name" placeholder="Customer full name" [class.is-invalid]="profileInvalid('name')" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="phone">Phone</label>
+                  <input id="phone" type="tel" class="form-control form-control-sm" formControlName="phone" placeholder="10-digit mobile number" maxlength="10" (input)="onPhoneInput($event)" [class.is-invalid]="profileInvalid('phone')" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="email">Email</label>
+                  <input id="email" type="email" class="form-control form-control-sm" formControlName="email" placeholder="email@example.com" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="address">Address</label>
+                  <textarea id="address" class="form-control form-control-sm" rows="2" formControlName="address" placeholder="Street, city, pin code"></textarea>
+                </div>
+                <div class="col-12 d-flex gap-2">
+                  <button type="submit" class="btn btn-primary btn-sm" [disabled]="savingProfile()">
+                    @if (savingProfile()) {
+                      <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Save
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelEdit()">Cancel</button>
+                </div>
+              </form>
+            } @else {
+              <dl class="customer-dl mb-0">
+                <dt>Phone</dt>
+                <dd>{{ cust.phone }}</dd>
+                <dt>Email</dt>
+                <dd>{{ cust.email || '—' }}</dd>
+                <dt>Address</dt>
+                <dd>{{ cust.address || '—' }}</dd>
+                <dt>Customer since</dt>
+                <dd>
+                  @if (cust.createdAt) {
+                    {{ cust.createdAt | date: 'dd MMM yyyy' }}
+                  } @else {
+                    —
+                  }
+                </dd>
+              </dl>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-8">
+        <div class="card page-main-card">
+          <div class="card-header">
+            <span class="fw-semibold">Schedule follow-up</span>
+          </div>
+          <div class="card-body">
+            <form [formGroup]="followUpForm" (ngSubmit)="addFollowUp()" appFormKeyboard novalidate class="row g-2 align-items-end">
+              <div class="col-12 col-md-5">
+                <label class="form-label" for="fuNote">Note <span class="text-danger">*</span></label>
+                <input id="fuNote" type="text" class="form-control form-control-sm" formControlName="note" placeholder="e.g. call for service reminder" [class.is-invalid]="followUpInvalid('note')" />
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label" for="fuDue">Due date</label>
+                <input id="fuDue" type="date" class="form-control form-control-sm" formControlName="dueDate" />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label" for="fuVehicle">Vehicle</label>
+                <select id="fuVehicle" class="form-select form-select-sm" formControlName="vehicleId">
+                  <option value="">Any / general</option>
+                  @for (v of customerVehicles(); track v.id) {
+                    <option [value]="v.id">{{ vehicleLabel(v) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100" [disabled]="savingFollowUp()">
+                  @if (savingFollowUp()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                  }
+                  Add
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card page-main-card mt-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Pending follow-ups</span>
+        <span class="badge text-bg-warning">{{ pendingFollowUps().length }}</span>
+      </div>
+      <div class="card-body">
+        @if (pendingFollowUps().length) {
+          <div class="list-group list-group-flush">
+            @for (fu of pendingFollowUps(); track fu.id) {
+              <div class="list-group-item px-0">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                  <div>
+                    <div class="fw-semibold">{{ fu.note }}</div>
+                    <div class="small text-muted">
+                      Due:
+                      <span [class]="followUpDueClass(fu.dueDate)">{{ fu.dueDate | date: 'dd MMM yyyy' }}</span>
+                      @if (fu.vehicleLabel) {
+                        · {{ fu.vehicleLabel }}
+                      }
+                    </div>
+                  </div>
+                  <div class="d-flex gap-1 flex-shrink-0">
+                    <button type="button" class="btn btn-sm btn-success" (click)="completeFollowUp(fu)">
+                      <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeFollowUp(fu)">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="text-muted text-center py-3 mb-0">No pending follow-ups.</p>
+        }
+
+        @if (doneFollowUps().length) {
+          <div class="mt-3 pt-3 border-top">
+            <button
+              type="button"
+              class="btn btn-sm btn-link text-decoration-none p-0 mb-2"
+              (click)="showDoneFollowUps.set(!showDoneFollowUps())"
+            >
+              {{ showDoneFollowUps() ? 'Hide' : 'Show' }} completed ({{ doneFollowUps().length }})
+            </button>
+            @if (showDoneFollowUps()) {
+              <div class="list-group list-group-flush">
+                @for (fu of doneFollowUps(); track fu.id) {
+                  <div class="list-group-item px-0 text-muted">
+                    <div class="text-decoration-line-through">{{ fu.note }}</div>
+                    <div class="small">
+                      Completed {{ fu.completedAt ? (fu.completedAt | date: 'dd MMM yyyy') : '—' }}
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card page-main-card mt-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Service history</span>
+        <span class="small text-muted">{{ serviceHistory().length }} record(s)</span>
+      </div>
+      <div class="card-body p-0">
+        @if (serviceHistory().length) {
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th class="col-row-num">#</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Details</th>
+                  <th class="d-none d-md-table-cell">Vehicle</th>
+                  <th>Status</th>
+                  <th class="text-end">Amount</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of serviceHistory(); track row.id + row.kind; let i = $index) {
+                  <tr>
+                    <td class="text-muted">{{ i + 1 }}</td>
+                    <td>{{ row.date | date: 'dd MMM yyyy' }}</td>
+                    <td>
+                      @if (row.kind === 'job') {
+                        <span class="badge text-bg-primary">Job</span>
+                      } @else {
+                        <span class="badge text-bg-info">Invoice</span>
+                      }
+                    </td>
+                    <td>{{ row.title }}</td>
+                    <td class="d-none d-md-table-cell">{{ row.vehicleLabel }}</td>
+                    <td>
+                      @if (row.kind === 'job') {
+                        <span class="badge {{ jobStatusClass(row.status) }}">{{ row.status }}</span>
+                      } @else {
+                        <span class="badge {{ invoiceStatusClass(row.status) }}">{{ row.status }}</span>
+                      }
+                    </td>
+                    <td class="text-end">
+                      @if (row.amount != null) {
+                        {{ row.amount | inr }}
+                      } @else {
+                        —
+                      }
+                    </td>
+                    <td class="text-end">
+                      <a [routerLink]="row.link" class="btn btn-sm btn-outline-secondary">
+                        Open
+                      </a>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="text-muted text-center py-4 mb-0">No service history yet.</p>
+        }
+      </div>
+    </div>
+  } @else if (!loading()) {
+    <div class="alert alert-warning">Customer not found.</div>
+    <a routerLink="/customers" class="btn btn-outline-secondary btn-sm">Back to customers</a>
+  }
+</app-page-loading>
+
+@if (selectedVehicle(); as vehicle) {
+  <div class="modal fade show d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title mb-0">
+              <i class="bi bi-car-front me-2"></i>{{ vehicle.registrationNo }}
+            </h5>
+            <div class="small text-muted">{{ vehicleLabel(vehicle) }}</div>
+          </div>
+          <button type="button" class="btn-close" (click)="closeVehicle()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4">
+              <div class="vehicle-detail-stat">
+                <div class="vehicle-detail-stat__label">Make</div>
+                <div class="vehicle-detail-stat__value">{{ vehicle.make || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="vehicle-detail-stat">
+                <div class="vehicle-detail-stat__label">Model</div>
+                <div class="vehicle-detail-stat__value">{{ vehicle.model || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="vehicle-detail-stat">
+                <div class="vehicle-detail-stat__label">Year</div>
+                <div class="vehicle-detail-stat__value">{{ vehicle.year ?? '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="vehicle-detail-stat">
+                <div class="vehicle-detail-stat__label">Color</div>
+                <div class="vehicle-detail-stat__value">{{ vehicle.color || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="vehicle-detail-stat">
+                <div class="vehicle-detail-stat__label">Odometer</div>
+                <div class="vehicle-detail-stat__value">
+                  @if (vehicle.odometer != null) {
+                    {{ vehicle.odometer | number }} km
+                  } @else {
+                    —
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="vehicle-detail-stat">
+                <div class="vehicle-detail-stat__label">Registered</div>
+                <div class="vehicle-detail-stat__value">
+                  @if (vehicle.createdAt) {
+                    {{ vehicle.createdAt | date: 'dd MMM yyyy' }}
+                  } @else {
+                    —
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          @if (selectedVehicleFollowUps().length) {
+            <h6 class="fw-semibold mb-2">Pending follow-ups</h6>
+            <ul class="list-group list-group-flush mb-4">
+              @for (fu of selectedVehicleFollowUps(); track fu.id) {
+                <li class="list-group-item px-0">
+                  <span class="fw-semibold">{{ fu.note }}</span>
+                  <span class="small text-muted ms-2">Due {{ fu.dueDate | date: 'dd MMM yyyy' }}</span>
+                </li>
+              }
+            </ul>
+          }
+
+          <h6 class="fw-semibold mb-2">Service history ({{ selectedVehicleJobs().length }})</h6>
+          @if (selectedVehicleJobs().length) {
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Complaint / work</th>
+                    <th>Status</th>
+                    <th class="text-end">Est. cost</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (job of selectedVehicleJobs(); track job.id) {
+                    <tr>
+                      <td>{{ job.createdAt | date: 'dd MMM yyyy' }}</td>
+                      <td>{{ job.complaint }}</td>
+                      <td>
+                        <span class="badge {{ jobStatusClass(job.status) }}">{{ job.status }}</span>
+                      </td>
+                      <td class="text-end">
+                        @if (job.estimatedCost != null) {
+                          {{ job.estimatedCost | inr }}
+                        } @else {
+                          —
+                        }
+                      </td>
+                      <td class="text-end">
+                        @if (job.id) {
+                          <a [routerLink]="['/job-cards', job.id, 'edit']" class="btn btn-sm btn-outline-primary">
+                            Open
+                          </a>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="text-muted mb-0">No service jobs recorded for this vehicle yet.</p>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" (click)="closeVehicle()">Close</button>
+          <a routerLink="/job-cards/new" class="btn btn-primary" (click)="closeVehicle()">
+            <i class="bi bi-plus-lg me-1"></i>New job card
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show"></div>
+}
+
+@if (showAddVehicle()) {
+  <div class="modal fade show d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form [formGroup]="addVehicleForm" (ngSubmit)="saveVehicle()" appFormKeyboard novalidate>
+          <div class="modal-header">
+            <h5 class="modal-title">Register vehicle</h5>
+            <button type="button" class="btn-close" (click)="closeAddVehicle()"></button>
+          </div>
+          <div class="modal-body row g-3">
+            <div class="col-12">
+              <label class="form-label" for="vehReg">Registration no. <span class="text-danger">*</span></label>
+              <input
+                id="vehReg"
+                type="text"
+                class="form-control"
+                formControlName="registrationNo"
+                placeholder="e.g. MH12AB1234"
+                [class.is-invalid]="vehicleInvalid('registrationNo')"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="vehMake">Make</label>
+              <input id="vehMake" type="text" class="form-control" formControlName="make" placeholder="e.g. Honda" />
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="vehModel">Model</label>
+              <input id="vehModel" type="text" class="form-control" formControlName="model" placeholder="e.g. City" />
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="vehColor">Color</label>
+              <input id="vehColor" type="text" class="form-control" formControlName="color" placeholder="e.g. white" />
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="vehYear">Year</label>
+              <input id="vehYear" type="number" class="form-control" formControlName="year" min="1980" max="2099" placeholder="e.g. 2020" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeAddVehicle()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="savingVehicle()">
+              @if (savingVehicle()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+              }
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show"></div>
+}

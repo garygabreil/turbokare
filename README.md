@@ -1,6 +1,6 @@
-# Garage Management System
+# JG GaragePro
 
-A full-stack, responsive Garage Management System built with **Angular 20 (standalone components)**, **Bootstrap 5**, and **Cloud Firestore** as the backend.
+Garage management application built with **Angular 20 (standalone components)**, **Bootstrap 5**, and **Cloud Firestore**.
 
 It manages the day-to-day operations of an auto repair shop: customers, vehicles, job cards / repair orders, spare-parts inventory, and invoices — all with live data, form validation, and toast notifications.
 

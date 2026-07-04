@@ -1,0 +1,36 @@
+.searchable-select {
+  .searchable-menu-fixed {
+    position: fixed;
+    z-index: 1080;
+    display: block;
+    margin: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .searchable-menu {
+    max-height: 260px;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+  }
+
+  .dropdown-item {
+    border-radius: 0.375rem;
+    white-space: normal;
+
+    &:active {
+      background-color: var(--gms-primary);
+      color: #fff;
+    }
+  }
+
+  .input-group-text {
+    cursor: pointer;
+    color: #6c757d;
+  }
+}

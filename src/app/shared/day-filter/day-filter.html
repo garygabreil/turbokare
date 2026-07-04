@@ -1,0 +1,31 @@
+<div class="day-filter-bar">
+  <span class="day-filter-label">Period</span>
+  <div class="day-filter-group">
+    <button
+      type="button"
+      class="day-filter-btn"
+      [class.active]="mode() === 'today'"
+      (click)="setToday()"
+    >
+      Today
+    </button>
+    <button
+      type="button"
+      class="day-filter-btn"
+      [class.active]="mode() === 'all'"
+      (click)="setAll()"
+    >
+      All
+    </button>
+  </div>
+  <div class="day-filter-date-wrap">
+    <span class="day-filter-label">Date</span>
+    <input
+      id="viewDate"
+      type="date"
+      class="day-filter-date text-none"
+      [ngModel]="selectedDate()"
+      (ngModelChange)="onDateChange($event)"
+    />
+  </div>
+</div>

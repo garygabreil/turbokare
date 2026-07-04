@@ -1,0 +1,13 @@
+@if (!connectivity.online()) {
+  <div class="connectivity-banner" role="alert" aria-live="assertive">
+    <div class="connectivity-banner__inner">
+      <i class="bi bi-wifi-off connectivity-banner__icon" aria-hidden="true"></i>
+      <div class="connectivity-banner__text">
+        <strong>No internet connection</strong>
+        <span class="connectivity-banner__detail">
+          Data may not load or save until you're back online.
+        </span>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,128 @@
+<app-page-loading [loading]="loading()" message="Loading invoice…">
+  @if (invoice(); as inv) {
+    <div class="invoice-print-toolbar no-print d-flex flex-wrap align-items-center gap-2 mb-3">
+      <a routerLink="/invoices" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <button type="button" class="btn btn-sm btn-primary" (click)="print()">
+        <i class="bi bi-printer me-1"></i>Print A4
+      </button>
+      <span class="small text-muted auth-hint">Press Enter or Ctrl+P to print</span>
+      <a [routerLink]="['/invoices', inv.id, 'edit']" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-pencil me-1"></i>Edit
+      </a>
+    </div>
+
+    <div class="invoice-a4-sheet">
+      <header class="invoice-header">
+        <div>
+          <h1 class="invoice-brand">JG GaragePro</h1>
+          <p class="invoice-tagline mb-0">Tax Invoice / Bill of Supply</p>
+        </div>
+        <div class="invoice-meta text-end">
+          <div class="invoice-meta-row"><span>Invoice #</span><strong>{{ inv.invoiceNo }}</strong></div>
+          <div class="invoice-meta-row">
+            <span>Date</span>
+            <strong>{{ inv.createdAt ? (inv.createdAt | date: 'dd MMM yyyy') : '—' }}</strong>
+          </div>
+          <div class="invoice-meta-row">
+            <span>Status</span>
+            <strong class="text-uppercase">{{ inv.status }}</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="invoice-parties">
+        <div class="invoice-party">
+          <h2>Bill To</h2>
+          <p class="party-name">{{ inv.customerName || '—' }}</p>
+          @if (customer()?.phone) {
+            <p class="party-line">Phone: {{ customer()?.phone }}</p>
+          }
+          @if (customer()?.email) {
+            <p class="party-line text-none">{{ customer()?.email }}</p>
+          }
+          @if (customer()?.address) {
+            <p class="party-line">{{ customer()?.address }}</p>
+          }
+          @if (inv.customerGstin) {
+            <p class="party-line">GSTIN: {{ inv.customerGstin }}</p>
+          }
+        </div>
+        <div class="invoice-party">
+          <h2>Billing</h2>
+          <p class="party-line">{{ billingLabel(inv) }}</p>
+          @if (inv.billingType === 'gst' && inv.gstType) {
+            <p class="party-line text-uppercase">
+              {{ inv.gstType === 'cgst_sgst' ? 'CGST + SGST (Intra-state)' : 'IGST (Inter-state)' }}
+            </p>
+          }
+        </div>
+      </section>
+
+      <table class="invoice-items">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Description</th>
+            <th class="text-center">Qty</th>
+            <th class="text-end">Rate (₹)</th>
+            <th class="text-end">Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of inv.items; track $index) {
+            <tr>
+              <td>{{ $index + 1 }}</td>
+              <td>{{ item.description }}</td>
+              <td class="text-center">{{ item.quantity }}</td>
+              <td class="text-end">{{ item.unitPrice | inr }}</td>
+              <td class="text-end">{{ item.quantity * item.unitPrice | inr }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <section class="invoice-totals">
+        <div class="totals-box">
+          <div class="totals-row">
+            <span>Subtotal</span>
+            <span>{{ inv.subtotal | inr }}</span>
+          </div>
+          @if (inv.billingType === 'gst') {
+            @if (inv.gstType === 'cgst_sgst') {
+              <div class="totals-row">
+                <span>CGST</span>
+                <span>{{ inv.cgst | inr }}</span>
+              </div>
+              <div class="totals-row">
+                <span>SGST</span>
+                <span>{{ inv.sgst | inr }}</span>
+              </div>
+            } @else {
+              <div class="totals-row">
+                <span>IGST</span>
+                <span>{{ inv.igst | inr }}</span>
+              </div>
+            }
+            <div class="totals-row">
+              <span>Total Tax</span>
+              <span>{{ inv.taxTotal | inr }}</span>
+            </div>
+          }
+          <div class="totals-row totals-grand">
+            <span>Grand Total</span>
+            <span>{{ inv.total | inr }}</span>
+          </div>
+        </div>
+      </section>
+
+      <footer class="invoice-footer">
+        <p>Thank you for your business.</p>
+        <p class="invoice-note">This is a computer-generated invoice.</p>
+      </footer>
+    </div>
+  } @else {
+    <div class="alert alert-warning no-print">Invoice not found.</div>
+  }
+</app-page-loading>

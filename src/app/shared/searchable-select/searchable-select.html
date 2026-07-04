@@ -1,0 +1,51 @@
+<div class="searchable-select position-relative">
+  <div class="input-group">
+    <input
+      [id]="inputId()"
+      type="text"
+      class="form-control text-uppercase"
+      autocomplete="off"
+      [placeholder]="placeholder()"
+      [value]="query()"
+      [class.is-invalid]="invalid()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+      (keydown)="onKeydown($event)"
+    />
+    <span class="input-group-text bg-white border-start-0">
+      <i class="bi" [class.bi-chevron-up]="open()" [class.bi-chevron-down]="!open()"></i>
+    </span>
+  </div>
+
+  @if (open()) {
+    <ul
+      class="dropdown-menu show shadow searchable-menu searchable-menu-fixed"
+      [style.top.px]="menuTop()"
+      [style.left.px]="menuLeft()"
+      [style.width.px]="menuWidth()"
+    >
+      @for (opt of filtered(); track opt.value; let i = $index) {
+        <li>
+          <button
+            type="button"
+            class="dropdown-item text-uppercase d-flex flex-column"
+            [class.active]="isHighlighted(i)"
+            (mousedown)="select(opt, true)"
+          >
+            <span>{{ opt.label }}</span>
+            @if (opt.sublabel) {
+              <small
+                class="text-muted"
+                [class.text-uppercase]="uppercaseMenu()"
+                [class.text-none]="!uppercaseMenu()"
+              >{{ opt.sublabel }}</small>
+            }
+          </button>
+        </li>
+      }       @empty {
+        <li><span class="dropdown-item-text text-muted small text-uppercase">No matches.</span></li>
+      }
+    </ul>
+  }
+</div>

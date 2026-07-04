@@ -1,18 +1,37 @@
-import { Component, computed, inject } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, inject, signal } from '@angular/core';
+import { InrCurrencyPipe } from '../../shared/pipes/inr-currency.pipe';
 import { RouterLink } from '@angular/router';
 import { CustomerService } from '../../core/services/customer.service';
 import { VehicleService } from '../../core/services/vehicle.service';
 import { JobCardService } from '../../core/services/job-card.service';
 import { PartService } from '../../core/services/part.service';
 import { InvoiceService } from '../../core/services/invoice.service';
+import { DayFilter } from '../../shared/day-filter/day-filter';
+import { ListSearch } from '../../shared/list-search/list-search';
+import { Pagination } from '../../shared/pagination/pagination';
+import { PageLoading } from '../../shared/page-loading/page-loading';
+import { isDataLoading, loadSignal, orEmpty } from '../../core/utils/loading-signal';
+import {
+  applyDayFilter,
+  DayFilterMode,
+  rowNumber as calcRowNumber,
+  todayDateInput,
+} from '../../core/utils/date-filter';
+import {
+  paginateItems,
+  searchByFields,
+  sortIconClass,
+  sortItems,
+  SortState,
+  toggleSort,
+} from '../../core/utils/table-utils';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, CurrencyPipe],
+  imports: [RouterLink, InrCurrencyPipe, DayFilter, ListSearch, Pagination, PageLoading],
   templateUrl: './dashboard.html',
+  styleUrl: './dashboard.scss',
 })
 export class Dashboard {
   private readonly customerService = inject(CustomerService);
@@ -21,38 +40,141 @@ export class Dashboard {
   private readonly partService = inject(PartService);
   private readonly invoiceService = inject(InvoiceService);
 
-  private readonly customers = toSignal(this.customerService.list(), { initialValue: [] });
-  private readonly vehicles = toSignal(this.vehicleService.list(), { initialValue: [] });
-  private readonly jobCards = toSignal(this.jobCardService.list(), { initialValue: [] });
-  private readonly parts = toSignal(this.partService.list(), { initialValue: [] });
-  private readonly invoices = toSignal(this.invoiceService.list(), { initialValue: [] });
+  private readonly customers = loadSignal(this.customerService.list());
+  private readonly vehicles = loadSignal(this.vehicleService.list());
+  private readonly jobCards = loadSignal(this.jobCardService.list());
+  private readonly parts = loadSignal(this.partService.list());
+  private readonly invoices = loadSignal(this.invoiceService.list());
 
-  readonly totalCustomers = computed(() => this.customers().length);
-  readonly totalVehicles = computed(() => this.vehicles().length);
+  readonly loading = isDataLoading(
+    this.customers,
+    this.vehicles,
+    this.jobCards,
+    this.parts,
+    this.invoices,
+  );
+
+  readonly dayMode = signal<DayFilterMode>('today');
+  readonly viewDate = signal(todayDateInput());
+  readonly jobsSearch = signal('');
+  readonly jobsSort = signal<SortState>({ key: 'createdAt', direction: 'desc' });
+  readonly jobsPage = signal(1);
+  readonly stockSearch = signal('');
+  readonly stockSort = signal<SortState>({ key: 'quantity', direction: 'asc' });
+  readonly stockPage = signal(1);
+  readonly pageSize = 5;
+
+  readonly filteredJobs = computed(() =>
+    applyDayFilter(orEmpty(this.jobCards()), (j) => j.createdAt, this.dayMode(), this.viewDate()),
+  );
+
+  readonly filteredInvoices = computed(() =>
+    applyDayFilter(orEmpty(this.invoices()), (i) => i.createdAt, this.dayMode(), this.viewDate()),
+  );
+
+  readonly totalCustomers = computed(() => {
+    if (this.dayMode() === 'all') {
+      return orEmpty(this.customers()).length;
+    }
+    return this.filteredJobs().length
+      ? new Set(this.filteredJobs().map((j) => j.customerId).filter(Boolean)).size
+      : 0;
+  });
+
+  readonly totalVehicles = computed(() => {
+    if (this.dayMode() === 'all') {
+      return orEmpty(this.vehicles()).length;
+    }
+    return this.filteredJobs().length
+      ? new Set(this.filteredJobs().map((j) => j.vehicleId).filter(Boolean)).size
+      : 0;
+  });
 
   readonly activeJobs = computed(
-    () => this.jobCards().filter((j) => j.status === 'pending' || j.status === 'in-progress').length,
+    () =>
+      this.filteredJobs().filter((j) => j.status === 'pending' || j.status === 'in-progress').length,
   );
 
   readonly lowStock = computed(
-    () => this.parts().filter((p) => p.quantity <= p.reorderLevel).length,
+    () => orEmpty(this.parts()).filter((p) => p.quantity <= p.reorderLevel).length,
   );
 
   readonly unpaidInvoices = computed(
-    () => this.invoices().filter((i) => i.status !== 'paid').length,
+    () => this.filteredInvoices().filter((i) => i.status !== 'paid').length,
   );
 
   readonly revenue = computed(() =>
-    this.invoices()
+    this.filteredInvoices()
       .filter((i) => i.status === 'paid')
       .reduce((sum, i) => sum + (i.total ?? 0), 0),
   );
 
-  readonly recentJobs = computed(() => this.jobCards().slice(0, 5));
+  readonly jobsRows = computed(() => {
+    let items = searchByFields(this.filteredJobs(), this.jobsSearch(), [
+      (j) => j.vehicleLabel,
+      (j) => j.customerName,
+      (j) => j.complaint,
+      (j) => j.status,
+    ]);
+    return sortItems(items, this.jobsSort(), {
+      vehicle: (j) => j.vehicleLabel ?? '',
+      customer: (j) => j.customerName ?? '',
+      complaint: (j) => j.complaint ?? '',
+      status: (j) => j.status ?? '',
+      createdAt: (j) => j.createdAt ?? 0,
+    });
+  });
 
-  readonly lowStockItems = computed(() =>
-    this.parts().filter((p) => p.quantity <= p.reorderLevel).slice(0, 5),
+  readonly pagedJobs = computed(() => paginateItems(this.jobsRows(), this.jobsPage(), this.pageSize));
+
+  readonly stockRows = computed(() => {
+    let items = orEmpty(this.parts()).filter((p) => p.quantity <= p.reorderLevel);
+    items = searchByFields(items, this.stockSearch(), [(p) => p.name, (p) => p.sku]);
+    return sortItems(items, this.stockSort(), {
+      name: (p) => p.name ?? '',
+      quantity: (p) => p.quantity ?? 0,
+    });
+  });
+
+  readonly pagedStock = computed(() =>
+    paginateItems(this.stockRows(), this.stockPage(), this.pageSize),
   );
+
+  setJobsSort(key: string): void {
+    this.jobsSort.update((s) => toggleSort(s, key));
+    this.jobsPage.set(1);
+  }
+
+  setStockSort(key: string): void {
+    this.stockSort.update((s) => toggleSort(s, key));
+    this.stockPage.set(1);
+  }
+
+  jobsSortIcon(key: string): string {
+    return sortIconClass(key, this.jobsSort());
+  }
+
+  stockSortIcon(key: string): string {
+    return sortIconClass(key, this.stockSort());
+  }
+
+  jobsRowNumber(index: number): number {
+    return calcRowNumber(this.jobsPage(), this.pageSize, index);
+  }
+
+  stockRowNumber(index: number): number {
+    return calcRowNumber(this.stockPage(), this.pageSize, index);
+  }
+
+  onJobsSearch(value: string): void {
+    this.jobsSearch.set(value);
+    this.jobsPage.set(1);
+  }
+
+  onStockSearch(value: string): void {
+    this.stockSearch.set(value);
+    this.stockPage.set(1);
+  }
 
   statusClass(status: string): string {
     switch (status) {

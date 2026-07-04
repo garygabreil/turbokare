@@ -1,0 +1,54 @@
+.connectivity-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2050;
+  background: linear-gradient(90deg, #b45309, #d97706);
+  color: #fff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.connectivity-banner__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1rem;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom));
+  max-width: 100%;
+}
+
+.connectivity-banner__icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.connectivity-banner__text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.connectivity-banner__detail {
+  opacity: 0.92;
+  font-weight: 400;
+}
+
+@media (max-width: 576px) {
+  .connectivity-banner__text {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  .connectivity-banner__detail {
+    font-size: 0.75rem;
+  }
+}

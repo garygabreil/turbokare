@@ -1,11 +1,12 @@
 {
   "name": "garage-management-system",
   "version": "1.0.0",
-  "description": "Full-stack Garage Management System built with Angular standalone components, Bootstrap and Firestore.",
+  "description": "JG GaragePro - garage management built with Angular, Bootstrap and Firestore.",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "deploy": "ng build && firebase deploy --only hosting",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

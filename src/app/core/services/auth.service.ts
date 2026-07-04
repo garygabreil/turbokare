@@ -1,21 +1,14 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import {
-  Firestore,
-  addDoc,
-  collection,
-  getDocs,
-  query,
-  where,
-} from '@angular/fire/firestore';
+import { Injectable, computed, signal } from '@angular/core';
 import { AppUser } from '../models';
 
 const STORAGE_KEY = 'gms_current_user';
 
+// Fixed credentials, by request. There is no sign-up.
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'admin';
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly firestore = inject(Firestore);
-  private readonly usersRef = collection(this.firestore, 'users');
-
   private readonly currentUser = signal<AppUser | null>(this.restore());
 
   readonly user = computed(() => this.currentUser());
@@ -39,37 +32,20 @@ export class AuthService {
     }
   }
 
-  async register(data: Omit<AppUser, 'id' | 'createdAt' | 'role'> & { role?: AppUser['role'] }): Promise<AppUser> {
-    const existing = await getDocs(query(this.usersRef, where('email', '==', data.email)));
-    if (!existing.empty) {
-      throw new Error('An account with this email already exists.');
+  async login(username: string, password: string): Promise<AppUser> {
+    const isValid =
+      username.trim().toLowerCase() === ADMIN_USERNAME &&
+      password.trim().toLowerCase() === ADMIN_PASSWORD;
+
+    if (!isValid) {
+      throw new Error('Invalid username or password.');
     }
 
-    const newUser: AppUser = {
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      role: data.role ?? 'staff',
-      createdAt: Date.now(),
+    const user: AppUser = {
+      name: 'Administrator',
+      username: ADMIN_USERNAME,
+      role: 'admin',
     };
-
-    const ref = await addDoc(this.usersRef, newUser);
-    const created: AppUser = { ...newUser, id: ref.id };
-    this.persist(created);
-    return created;
-  }
-
-  async login(email: string, password: string): Promise<AppUser> {
-    const snap = await getDocs(
-      query(this.usersRef, where('email', '==', email), where('password', '==', password)),
-    );
-
-    if (snap.empty) {
-      throw new Error('Invalid email or password.');
-    }
-
-    const docSnap = snap.docs[0];
-    const user: AppUser = { id: docSnap.id, ...(docSnap.data() as AppUser) };
     this.persist(user);
     return user;
   }

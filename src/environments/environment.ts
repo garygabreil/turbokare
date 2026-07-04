@@ -1,15 +1,15 @@
 // Firebase configuration.
-// Replace the placeholder values below with your own Firebase project's config.
 // Find these values in the Firebase console:
 //   Project settings -> General -> Your apps -> SDK setup and configuration.
 export const environment = {
   production: false,
   firebase: {
-    apiKey: 'YOUR_API_KEY',
-    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    appId: 'YOUR_APP_ID',
+    apiKey: 'AIzaSyCnG_A97ZtKbKQWphltLEZaARdgysT5MM8',
+    authDomain: 'garage-management-app-69195.firebaseapp.com',
+    projectId: 'garage-management-app-69195',
+    storageBucket: 'garage-management-app-69195.firebasestorage.app',
+    messagingSenderId: '73821297496',
+    appId: '1:73821297496:web:46fe0f490db9bb8117232d',
+    measurementId: 'G-H95BEZEH0W',
   },
 };

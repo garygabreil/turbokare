@@ -1,13 +1,15 @@
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { trimRequired } from '../../../core/validators/trim-required.validator';
+import { FormKeyboardDirective } from '../../../shared/directives/form-keyboard.directive';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, FormKeyboardDirective],
   templateUrl: './login.html',
 })
 export class Login {
@@ -17,10 +19,12 @@ export class Login {
   private readonly notify = inject(NotificationService);
 
   readonly submitting = signal(false);
+  readonly authError = signal('');
+  readonly year = new Date().getFullYear();
 
   readonly form = this.fb.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(4)]],
+    username: ['', [trimRequired()]],
+    password: ['', [trimRequired()]],
   });
 
   invalid(control: string): boolean {
@@ -28,20 +32,34 @@ export class Login {
     return !!c && c.invalid && (c.touched || c.dirty);
   }
 
+  errorMessage(control: string): string {
+    const c = this.form.get(control);
+    if (!c?.errors) {
+      return '';
+    }
+    if (c.errors['required']) {
+      return control === 'username' ? 'Username is required.' : 'Password is required.';
+    }
+    return 'Invalid value.';
+  }
+
   async submit(): Promise<void> {
+    this.authError.set('');
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
     this.submitting.set(true);
-    const { email, password } = this.form.getRawValue();
+    const { username, password } = this.form.getRawValue();
     try {
-      const user = await this.auth.login(email, password);
+      const user = await this.auth.login(username, password);
       this.notify.success(`Welcome back, ${user.name}!`);
       await this.router.navigate(['/dashboard']);
     } catch (err) {
-      this.notify.error((err as Error).message);
+      const message = (err as Error).message;
+      this.authError.set(message);
+      this.notify.error(message);
     } finally {
       this.submitting.set(false);
     }

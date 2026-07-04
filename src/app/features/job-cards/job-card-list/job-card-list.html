@@ -1,56 +1,129 @@
+<app-page-loading [loading]="loading()" message="Loading job cards…">
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
-  <h1 class="h3 page-title mb-0">Job Cards</h1>
+  <div>
+    <h1 class="h3 page-title mb-0">Job Cards</h1>
+    <div class="page-meta">
+      <span class="meta-badge">
+        <i class="bi bi-clipboard2-check me-1"></i>Work orders
+      </span>
+      <span class="meta-text">{{ summary().total }} job(s) in selected period</span>
+    </div>
+  </div>
   <a routerLink="/job-cards/new" class="btn btn-primary btn-sm">
     <i class="bi bi-plus-lg me-1"></i>New Job Card
   </a>
 </div>
 
-<div class="card">
+<div class="row g-3 mb-3 page-summary">
+  <div class="col-6 col-md-3">
+    <div class="card page-stat page-stat--primary h-100">
+      <div class="card-body">
+        <div class="stat-label">Total jobs</div>
+        <div class="stat-value">{{ summary().total }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card page-stat page-stat--warning h-100">
+      <div class="card-body">
+        <div class="stat-label">Active</div>
+        <div class="stat-value">{{ summary().active }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card page-stat page-stat--success h-100">
+      <div class="card-body">
+        <div class="stat-label">Completed / delivered</div>
+        <div class="stat-value">{{ summary().completed }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card page-stat page-stat--money h-100">
+      <div class="card-body">
+        <div class="stat-label">Est. value</div>
+        <div class="stat-value">{{ summary().estimated | inr }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-day-filter
+  [mode]="dayMode()"
+  (modeChange)="dayMode.set($event); onDayFilterChange()"
+  [selectedDate]="viewDate()"
+  (selectedDateChange)="viewDate.set($event); onDayFilterChange()"
+/>
+
+<div class="card page-main-card">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span class="fw-semibold">Job cards list</span>
+    <span class="small text-muted">{{ filtered().length }} shown</span>
+  </div>
   <div class="card-body">
-    <div class="btn-group btn-group-sm mb-3 flex-wrap" role="group">
-      @for (status of ['all', 'pending', 'in-progress', 'completed', 'delivered']; track status) {
-        <button
-          type="button"
-          class="btn"
-          [class.btn-primary]="statusFilter() === status"
-          [class.btn-outline-secondary]="statusFilter() !== status"
-          (click)="statusFilter.set($any(status))"
-        >
-          {{ status }}
-        </button>
-      }
+    <div class="table-toolbar">
+      <div class="status-chips">
+        @for (status of ['all', 'pending', 'in-progress', 'completed', 'delivered']; track status) {
+          <button
+            type="button"
+            class="status-chip"
+            [class.active]="statusFilter() === status"
+            (click)="setFilter($any(status))"
+          >
+            {{ status }}
+          </button>
+        }
+      </div>
+      <app-list-search
+        placeholder="Search vehicle, customer, complaint…"
+        [value]="search()"
+        (valueChange)="onSearch($event)"
+      />
     </div>
 
     @if (filtered().length) {
       <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead class="table-light">
+        <table class="table table-hover align-middle mb-0 text-uppercase">
+          <thead>
             <tr>
-              <th>Vehicle</th>
-              <th class="d-none d-md-table-cell">Customer</th>
-              <th>Complaint</th>
-              <th class="d-none d-lg-table-cell">Est. Cost</th>
-              <th>Status</th>
+              <th style="width: 1%">#</th>
+              <th class="sortable-th" (click)="setSort('vehicle')">
+                Vehicle <i class="bi {{ sortIcon('vehicle') }}"></i>
+              </th>
+              <th class="d-none d-md-table-cell sortable-th" (click)="setSort('customer')">
+                Customer <i class="bi {{ sortIcon('customer') }}"></i>
+              </th>
+              <th class="sortable-th" (click)="setSort('complaint')">
+                Complaint <i class="bi {{ sortIcon('complaint') }}"></i>
+              </th>
+              <th class="d-none d-lg-table-cell sortable-th" (click)="setSort('cost')">
+                Est. Cost (₹) <i class="bi {{ sortIcon('cost') }}"></i>
+              </th>
+              <th class="sortable-th" (click)="setSort('status')">
+                Status <i class="bi {{ sortIcon('status') }}"></i>
+              </th>
               <th class="text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
-            @for (job of filtered(); track job.id) {
+            @for (job of paged(); track job.id; let i = $index) {
               <tr>
-                <td class="fw-semibold">{{ job.vehicleLabel || '—' }}</td>
+                <td class="text-muted">{{ rowNumber(i) }}</td>
+                <td class="fw-semibold">{{ vehicleDisplay(job.vehicleLabel) }}</td>
                 <td class="d-none d-md-table-cell">{{ job.customerName || '—' }}</td>
                 <td class="text-truncate" style="max-width: 220px">{{ job.complaint }}</td>
-                <td class="d-none d-lg-table-cell">{{ job.estimatedCost | currency }}</td>
+                <td class="d-none d-lg-table-cell">{{ job.estimatedCost | inr }}</td>
                 <td>
                   <select
-                    class="form-select form-select-sm w-auto d-inline-block"
+                    class="form-select form-select-sm w-auto d-inline-block text-uppercase"
                     [ngModel]="job.status"
                     (ngModelChange)="updateStatus(job.id, $event)"
                   >
-                    <option value="pending">pending</option>
-                    <option value="in-progress">in-progress</option>
-                    <option value="completed">completed</option>
-                    <option value="delivered">delivered</option>
+                    <option value="pending">PENDING</option>
+                    <option value="in-progress">IN-PROGRESS</option>
+                    <option value="completed">COMPLETED</option>
+                    <option value="delivered">DELIVERED</option>
                   </select>
                 </td>
                 <td class="text-end text-nowrap">
@@ -74,6 +147,13 @@
           </tbody>
         </table>
       </div>
+
+      <app-pagination
+        [total]="filtered().length"
+        [pageSize]="pageSize"
+        [page]="page()"
+        (pageChange)="page.set($event)"
+      />
     } @else {
       <div class="text-center text-muted py-5">
         <i class="bi bi-clipboard2-check" style="font-size: 2.5rem"></i>
@@ -82,3 +162,4 @@
     }
   </div>
 </div>
+</app-page-loading>

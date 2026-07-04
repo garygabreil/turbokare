@@ -1,61 +1,220 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, HostListener, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { formatInr, InrCurrencyPipe } from '../../shared/pipes/inr-currency.pipe';
 import { FormsModule } from '@angular/forms';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { PartService } from '../../core/services/part.service';
 import { JobCardService } from '../../core/services/job-card.service';
 import { StockMovementService } from '../../core/services/stock-movement.service';
 import { ExportService } from '../../core/services/export.service';
+import { PrintService } from '../../core/services/print.service';
 import { Invoice } from '../../core/models';
+import { Pagination } from '../../shared/pagination/pagination';
+import { DayFilter } from '../../shared/day-filter/day-filter';
+import { ListSearch } from '../../shared/list-search/list-search';
+import { PageLoading } from '../../shared/page-loading/page-loading';
+import { isDataLoading, loadSignal, orEmpty } from '../../core/utils/loading-signal';
+import {
+  applyDayFilter,
+  DayFilterMode,
+  isInDateRange,
+  rowNumber as calcRowNumber,
+  sortTodayFirst,
+  todayDateInput,
+} from '../../core/utils/date-filter';
+import {
+  paginateItems,
+  searchByFields,
+  sortIconClass,
+  sortItems,
+  SortState,
+  toggleSort,
+} from '../../core/utils/table-utils';
+import { isTypingTarget } from '../../core/utils/focus-nav';
 
 type ReportTab = 'sales' | 'gst' | 'inventory' | 'audit';
 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [FormsModule, CurrencyPipe, DatePipe],
+  imports: [FormsModule, InrCurrencyPipe, DatePipe, Pagination, DayFilter, ListSearch, PageLoading],
   templateUrl: './reports.html',
 })
 export class Reports {
+  readonly pageSize = 8;
+  readonly salesPage = signal(1);
+  readonly gstPage = signal(1);
+  readonly inventoryPage = signal(1);
+  readonly auditPage = signal(1);
   private readonly invoiceService = inject(InvoiceService);
   private readonly partService = inject(PartService);
   private readonly jobCardService = inject(JobCardService);
   private readonly stockService = inject(StockMovementService);
   private readonly exporter = inject(ExportService);
+  private readonly printService = inject(PrintService);
 
   readonly tab = signal<ReportTab>('sales');
 
-  private readonly today = new Date();
-  private readonly monthStart = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
+  readonly fromDate = signal(todayDateInput());
+  readonly toDate = signal(todayDateInput());
+  readonly inventoryDayMode = signal<DayFilterMode>('today');
+  readonly inventoryViewDate = signal(todayDateInput());
 
-  readonly fromDate = signal(this.toInputDate(this.monthStart));
-  readonly toDate = signal(this.toInputDate(this.today));
+  readonly salesSearch = signal('');
+  readonly gstSearch = signal('');
+  readonly inventorySearch = signal('');
+  readonly auditSearch = signal('');
 
-  private readonly invoices = toSignal(this.invoiceService.list(), { initialValue: [] });
-  private readonly parts = toSignal(this.partService.list(), { initialValue: [] });
-  private readonly jobCards = toSignal(this.jobCardService.list(), { initialValue: [] });
-  private readonly movements = toSignal(this.stockService.list(), { initialValue: [] });
+  readonly salesSort = signal<SortState>({ key: 'createdAt', direction: 'desc' });
+  readonly gstSort = signal<SortState>({ key: 'createdAt', direction: 'desc' });
+  readonly inventorySort = signal<SortState>({ key: 'name', direction: 'asc' });
+  readonly auditSort = signal<SortState>({ key: 'createdAt', direction: 'desc' });
 
-  private toInputDate(d: Date): string {
-    return d.toISOString().slice(0, 10);
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeydown(event: KeyboardEvent): void {
+    if (this.tab() !== 'audit' || !this.auditRows().length) {
+      return;
+    }
+    if (isTypingTarget(event.target)) {
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+      event.preventDefault();
+      this.printAudit();
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.printAudit();
+    }
   }
 
+  private readonly invoices = loadSignal(this.invoiceService.list());
+  private readonly parts = loadSignal(this.partService.list());
+  private readonly jobCards = loadSignal(this.jobCardService.list());
+  private readonly movements = loadSignal(this.stockService.list());
+
+  readonly loading = isDataLoading(this.invoices, this.parts, this.jobCards, this.movements);
+
+  private readonly dateFilteredInvoices = computed(() =>
+    sortTodayFirst(
+      orEmpty(this.invoices()).filter((i) => this.inRange(i.createdAt)),
+      (i) => i.createdAt,
+    ),
+  );
+
   private inRange(ts: number | undefined): boolean {
-    if (!ts) {
-      return false;
+    return isInDateRange(ts, this.fromDate(), this.toDate());
+  }
+
+  setTodayRange(): void {
+    const today = todayDateInput();
+    this.fromDate.set(today);
+    this.toDate.set(today);
+    this.resetPages();
+  }
+
+  rowNumber(page: number, index: number): number {
+    return calcRowNumber(page, this.pageSize, index);
+  }
+
+  onInventoryDayFilterChange(): void {
+    this.inventoryPage.set(1);
+  }
+
+  onSearch(tab: ReportTab, value: string): void {
+    switch (tab) {
+      case 'sales':
+        this.salesSearch.set(value);
+        this.salesPage.set(1);
+        break;
+      case 'gst':
+        this.gstSearch.set(value);
+        this.gstPage.set(1);
+        break;
+      case 'inventory':
+        this.inventorySearch.set(value);
+        this.inventoryPage.set(1);
+        break;
+      case 'audit':
+        this.auditSearch.set(value);
+        this.auditPage.set(1);
+        break;
     }
-    const from = new Date(this.fromDate()).setHours(0, 0, 0, 0);
-    const to = new Date(this.toDate()).setHours(23, 59, 59, 999);
-    return ts >= from && ts <= to;
+  }
+
+  setSort(tab: ReportTab, key: string): void {
+    switch (tab) {
+      case 'sales':
+        this.salesSort.update((s) => toggleSort(s, key));
+        this.salesPage.set(1);
+        break;
+      case 'gst':
+        this.gstSort.update((s) => toggleSort(s, key));
+        this.gstPage.set(1);
+        break;
+      case 'inventory':
+        this.inventorySort.update((s) => toggleSort(s, key));
+        this.inventoryPage.set(1);
+        break;
+      case 'audit':
+        this.auditSort.update((s) => toggleSort(s, key));
+        this.auditPage.set(1);
+        break;
+    }
+  }
+
+  sortIcon(tab: ReportTab, key: string): string {
+    const sort =
+      tab === 'sales'
+        ? this.salesSort()
+        : tab === 'gst'
+          ? this.gstSort()
+          : tab === 'inventory'
+            ? this.inventorySort()
+            : this.auditSort();
+    return sortIconClass(key, sort);
   }
 
   setTab(tab: ReportTab): void {
     this.tab.set(tab);
   }
 
+  private resetPages(): void {
+    this.salesPage.set(1);
+    this.gstPage.set(1);
+    this.inventoryPage.set(1);
+    this.auditPage.set(1);
+  }
+
+  onFromDate(value: string): void {
+    this.fromDate.set(value);
+    this.resetPages();
+  }
+
+  onToDate(value: string): void {
+    this.toDate.set(value);
+    this.resetPages();
+  }
+
   // ---- Sales report ----
-  readonly salesInvoices = computed(() => this.invoices().filter((i) => this.inRange(i.createdAt)));
+  readonly salesInvoices = computed(() => {
+    let items = searchByFields(this.dateFilteredInvoices(), this.salesSearch(), [
+      (i) => i.invoiceNo,
+      (i) => i.customerName,
+      (i) => i.status,
+    ]);
+    return sortItems(items, this.salesSort(), {
+      invoiceNo: (i) => i.invoiceNo ?? '',
+      createdAt: (i) => i.createdAt ?? 0,
+      customer: (i) => i.customerName ?? '',
+      type: (i) => i.billingType ?? '',
+      subtotal: (i) => i.subtotal ?? 0,
+      tax: (i) => i.taxTotal ?? 0,
+      total: (i) => i.total ?? 0,
+      status: (i) => i.status ?? '',
+    });
+  });
 
   readonly salesSummary = computed(() => {
     const rows = this.salesInvoices();
@@ -71,10 +230,32 @@ export class Reports {
     };
   });
 
-  // ---- GST report ----
-  readonly gstInvoices = computed(() =>
-    this.salesInvoices().filter((i) => i.billingType === 'gst'),
+  readonly pagedSales = computed(() =>
+    paginateItems(this.salesInvoices(), this.salesPage(), this.pageSize),
   );
+
+  // ---- GST report ----
+  readonly gstInvoices = computed(() => {
+    let items = this.dateFilteredInvoices().filter((i) => i.billingType === 'gst');
+    items = searchByFields(items, this.gstSearch(), [
+      (i) => i.invoiceNo,
+      (i) => i.customerName,
+      (i) => i.customerGstin,
+    ]);
+    return sortItems(items, this.gstSort(), {
+      invoiceNo: (i) => i.invoiceNo ?? '',
+      customer: (i) => i.customerName ?? '',
+      gstin: (i) => i.customerGstin ?? '',
+      rate: (i) => i.gstPercent ?? 0,
+      subtotal: (i) => i.subtotal ?? 0,
+      cgst: (i) => i.cgst ?? 0,
+      sgst: (i) => i.sgst ?? 0,
+      igst: (i) => i.igst ?? 0,
+      total: (i) => i.total ?? 0,
+    });
+  });
+
+  readonly pagedGst = computed(() => paginateItems(this.gstInvoices(), this.gstPage(), this.pageSize));
 
   readonly gstSummary = computed(() => {
     const rows = this.gstInvoices();
@@ -88,13 +269,31 @@ export class Reports {
   });
 
   // ---- Inventory report ----
-  readonly inventoryRows = computed(() =>
-    this.parts().map((p) => ({
+  readonly inventoryRows = computed(() => {
+    const filtered = applyDayFilter(
+      orEmpty(this.parts()),
+      (p) => p.createdAt,
+      this.inventoryDayMode(),
+      this.inventoryViewDate(),
+    );
+    let items = searchByFields(filtered, this.inventorySearch(), [
+      (p) => p.name,
+      (p) => p.sku,
+      (p) => p.category,
+    ]);
+    items = sortItems(items, this.inventorySort(), {
+      name: (p) => p.name ?? '',
+      sku: (p) => p.sku ?? '',
+      quantity: (p) => p.quantity ?? 0,
+      unitPrice: (p) => p.unitPrice ?? 0,
+      value: (p) => (p.quantity ?? 0) * (p.unitPrice ?? 0),
+    });
+    return items.map((p) => ({
       ...p,
       value: p.quantity * p.unitPrice,
       low: p.quantity <= p.reorderLevel,
-    })),
-  );
+    }));
+  });
 
   readonly inventorySummary = computed(() => {
     const rows = this.inventoryRows();
@@ -106,11 +305,41 @@ export class Reports {
     };
   });
 
+  readonly pagedInventory = computed(() =>
+    paginateItems(this.inventoryRows(), this.inventoryPage(), this.pageSize),
+  );
+
   // ---- Audit log ----
-  readonly auditRows = computed(() => this.movements().filter((m) => this.inRange(m.createdAt)));
+  readonly auditRows = computed(() => {
+    let items = sortTodayFirst(
+      orEmpty(this.movements()).filter((m) => this.inRange(m.createdAt)),
+      (m) => m.createdAt,
+    );
+    items = searchByFields(items, this.auditSearch(), [
+      (m) => m.partName,
+      (m) => m.sku,
+      (m) => m.type,
+      (m) => m.reason,
+      (m) => m.performedBy,
+    ]);
+    return sortItems(items, this.auditSort(), {
+      createdAt: (m) => m.createdAt ?? 0,
+      part: (m) => m.partName ?? '',
+      type: (m) => m.type ?? '',
+      quantity: (m) => m.quantity ?? 0,
+      before: (m) => m.balanceBefore ?? 0,
+      after: (m) => m.balanceAfter ?? 0,
+      reason: (m) => m.reason ?? '',
+      by: (m) => m.performedBy ?? '',
+    });
+  });
+
+  readonly pagedAudit = computed(() =>
+    paginateItems(this.auditRows(), this.auditPage(), this.pageSize),
+  );
 
   readonly jobStatusSummary = computed(() => {
-    const jobs = this.jobCards();
+    const jobs = orEmpty(this.jobCards());
     return {
       pending: jobs.filter((j) => j.status === 'pending').length,
       inProgress: jobs.filter((j) => j.status === 'in-progress').length,
@@ -123,6 +352,24 @@ export class Reports {
     return invoice.billingType === 'gst' ? `GST ${invoice.gstPercent}%` : 'Non-GST';
   }
 
+  printAudit(): void {
+    const rows = this.auditRows().map((m) => [
+      m.createdAt ? new Date(m.createdAt).toLocaleString() : '',
+      m.partName ?? '',
+      (m.type ?? '').toUpperCase(),
+      String(m.quantity ?? ''),
+      String(m.balanceBefore ?? ''),
+      String(m.balanceAfter ?? ''),
+      m.reason ?? '',
+      m.performedBy ?? '',
+    ]);
+    this.printService.printTable(
+      `Stock Audit Log (${this.fromDate()} to ${this.toDate()})`,
+      ['Date', 'Part', 'Movement', 'Qty', 'Before', 'After', 'Reason', 'By'],
+      rows,
+    );
+  }
+
   // ---- CSV exports ----
   exportSales(): void {
     const rows = this.salesInvoices().map((i) => ({
@@ -130,9 +377,9 @@ export class Reports {
       customer: i.customerName ?? '',
       date: i.createdAt ? new Date(i.createdAt).toLocaleDateString() : '',
       type: this.billingLabel(i),
-      subtotal: (i.subtotal ?? 0).toFixed(2),
-      tax: (i.taxTotal ?? 0).toFixed(2),
-      total: (i.total ?? 0).toFixed(2),
+      subtotal: formatInr(i.subtotal),
+      tax: formatInr(i.taxTotal),
+      total: formatInr(i.total),
       status: i.status,
     }));
     this.exporter.toCsv(
@@ -142,9 +389,9 @@ export class Reports {
         { key: 'customer', label: 'Customer' },
         { key: 'date', label: 'Date' },
         { key: 'type', label: 'Type' },
-        { key: 'subtotal', label: 'Subtotal' },
-        { key: 'tax', label: 'Tax' },
-        { key: 'total', label: 'Total' },
+        { key: 'subtotal', label: 'Subtotal (₹)' },
+        { key: 'tax', label: 'Tax (₹)' },
+        { key: 'total', label: 'Total (₹)' },
         { key: 'status', label: 'Status' },
       ],
       `sales-report-${this.fromDate()}_to_${this.toDate()}`,
@@ -157,11 +404,11 @@ export class Reports {
       customer: i.customerName ?? '',
       gstin: i.customerGstin ?? '',
       rate: `${i.gstPercent}%`,
-      taxable: (i.subtotal ?? 0).toFixed(2),
-      cgst: (i.cgst ?? 0).toFixed(2),
-      sgst: (i.sgst ?? 0).toFixed(2),
-      igst: (i.igst ?? 0).toFixed(2),
-      total: (i.total ?? 0).toFixed(2),
+      taxable: formatInr(i.subtotal),
+      cgst: formatInr(i.cgst),
+      sgst: formatInr(i.sgst),
+      igst: formatInr(i.igst),
+      total: formatInr(i.total),
     }));
     this.exporter.toCsv(
       rows,
@@ -170,11 +417,11 @@ export class Reports {
         { key: 'customer', label: 'Customer' },
         { key: 'gstin', label: 'GSTIN' },
         { key: 'rate', label: 'GST Rate' },
-        { key: 'taxable', label: 'Taxable Value' },
-        { key: 'cgst', label: 'CGST' },
-        { key: 'sgst', label: 'SGST' },
-        { key: 'igst', label: 'IGST' },
-        { key: 'total', label: 'Invoice Total' },
+        { key: 'taxable', label: 'Taxable Value (₹)' },
+        { key: 'cgst', label: 'CGST (₹)' },
+        { key: 'sgst', label: 'SGST (₹)' },
+        { key: 'igst', label: 'IGST (₹)' },
+        { key: 'total', label: 'Invoice Total (₹)' },
       ],
       `gst-report-${this.fromDate()}_to_${this.toDate()}`,
     );
@@ -187,8 +434,8 @@ export class Reports {
       category: p.category ?? '',
       quantity: p.quantity,
       reorderLevel: p.reorderLevel,
-      unitPrice: p.unitPrice.toFixed(2),
-      value: p.value.toFixed(2),
+      unitPrice: formatInr(p.unitPrice),
+      value: formatInr(p.value),
       status: p.low ? 'LOW STOCK' : 'OK',
     }));
     this.exporter.toCsv(
@@ -199,8 +446,8 @@ export class Reports {
         { key: 'category', label: 'Category' },
         { key: 'quantity', label: 'Quantity' },
         { key: 'reorderLevel', label: 'Reorder Level' },
-        { key: 'unitPrice', label: 'Unit Price' },
-        { key: 'value', label: 'Stock Value' },
+        { key: 'unitPrice', label: 'Unit Price (₹)' },
+        { key: 'value', label: 'Stock Value (₹)' },
         { key: 'status', label: 'Status' },
       ],
       'inventory-report',
