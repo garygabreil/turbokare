@@ -1,0 +1,139 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 page-title mb-0">Dashboard</h1>
+  <a routerLink="/job-cards/new" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>New Job Card
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-4 col-xl-2">
+    <div class="card stat-card text-bg-primary h-100">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <div class="small text-uppercase opacity-75">Customers</div>
+          <div class="h3 mb-0 fw-bold">{{ totalCustomers() }}</div>
+        </div>
+        <i class="bi bi-people stat-icon"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-4 col-xl-2">
+    <div class="card stat-card text-bg-info h-100">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <div class="small text-uppercase opacity-75">Vehicles</div>
+          <div class="h3 mb-0 fw-bold">{{ totalVehicles() }}</div>
+        </div>
+        <i class="bi bi-car-front stat-icon"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-4 col-xl-2">
+    <div class="card stat-card text-bg-warning h-100">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <div class="small text-uppercase opacity-75">Active Jobs</div>
+          <div class="h3 mb-0 fw-bold">{{ activeJobs() }}</div>
+        </div>
+        <i class="bi bi-clipboard2-check stat-icon"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-4 col-xl-2">
+    <div class="card stat-card text-bg-danger h-100">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <div class="small text-uppercase opacity-75">Low Stock</div>
+          <div class="h3 mb-0 fw-bold">{{ lowStock() }}</div>
+        </div>
+        <i class="bi bi-exclamation-triangle stat-icon"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-4 col-xl-2">
+    <div class="card stat-card text-bg-secondary h-100">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <div class="small text-uppercase opacity-75">Unpaid</div>
+          <div class="h3 mb-0 fw-bold">{{ unpaidInvoices() }}</div>
+        </div>
+        <i class="bi bi-receipt stat-icon"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-4 col-xl-2">
+    <div class="card stat-card text-bg-success h-100">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <div class="small text-uppercase opacity-75">Revenue</div>
+          <div class="h5 mb-0 fw-bold">{{ revenue() | currency }}</div>
+        </div>
+        <i class="bi bi-cash-stack stat-icon"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-7">
+    <div class="card h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Recent Job Cards</span>
+        <a routerLink="/job-cards" class="small text-decoration-none">View all</a>
+      </div>
+      <div class="card-body p-0">
+        @if (recentJobs().length) {
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Customer</th>
+                  <th>Complaint</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (job of recentJobs(); track job.id) {
+                  <tr>
+                    <td>{{ job.vehicleLabel || '—' }}</td>
+                    <td>{{ job.customerName || '—' }}</td>
+                    <td class="text-truncate" style="max-width: 220px">{{ job.complaint }}</td>
+                    <td>
+                      <span class="badge {{ statusClass(job.status) }}">{{ job.status }}</span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="text-muted text-center py-4 mb-0">No job cards yet.</p>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <div class="card h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Low Stock Alerts</span>
+        <a routerLink="/inventory" class="small text-decoration-none">View all</a>
+      </div>
+      <div class="card-body p-0">
+        @if (lowStockItems().length) {
+          <ul class="list-group list-group-flush">
+            @for (part of lowStockItems(); track part.id) {
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ part.name }}</span>
+                <span class="badge text-bg-danger rounded-pill">{{ part.quantity }} left</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="text-muted text-center py-4 mb-0">All parts are well stocked.</p>
+        }
+      </div>
+    </div>
+  </div>
+</div>

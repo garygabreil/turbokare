@@ -1,0 +1,97 @@
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a routerLink="/job-cards" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h1 class="h3 page-title mb-0">{{ isEdit ? 'Edit' : 'New' }} Job Card</h1>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="vehicleId">Vehicle <span class="text-danger">*</span></label>
+        <select
+          id="vehicleId"
+          class="form-select"
+          formControlName="vehicleId"
+          [class.is-invalid]="invalid('vehicleId')"
+        >
+          <option value="">Select vehicle…</option>
+          @for (vehicle of vehicles(); track vehicle.id) {
+            <option [value]="vehicle.id">
+              {{ vehicle.registrationNo }} — {{ vehicle.make }} {{ vehicle.model }} ({{ vehicle.customerName }})
+            </option>
+          }
+        </select>
+        @if (invalid('vehicleId')) {
+          <div class="invalid-feedback">Please select a vehicle.</div>
+        }
+        @if (!vehicles().length) {
+          <div class="form-text text-warning">
+            No vehicles yet. <a routerLink="/vehicles/new">Add one first</a>.
+          </div>
+        }
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="assignedTo">Assigned mechanic</label>
+        <input id="assignedTo" type="text" class="form-control" formControlName="assignedTo" />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="complaint">
+          Complaint / Work required <span class="text-danger">*</span>
+        </label>
+        <textarea
+          id="complaint"
+          rows="2"
+          class="form-control"
+          formControlName="complaint"
+          [class.is-invalid]="invalid('complaint')"
+        ></textarea>
+        @if (invalid('complaint')) {
+          <div class="invalid-feedback">Please describe the complaint (min 3 characters).</div>
+        }
+      </div>
+
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="status">Status</label>
+        <select id="status" class="form-select" formControlName="status">
+          <option value="pending">Pending</option>
+          <option value="in-progress">In progress</option>
+          <option value="completed">Completed</option>
+          <option value="delivered">Delivered</option>
+        </select>
+      </div>
+
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="estimatedCost">Estimated cost</label>
+        <input
+          id="estimatedCost"
+          type="number"
+          class="form-control"
+          formControlName="estimatedCost"
+          [class.is-invalid]="invalid('estimatedCost')"
+        />
+        @if (invalid('estimatedCost')) {
+          <div class="invalid-feedback">Must be zero or more.</div>
+        }
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="notes">Notes</label>
+        <textarea id="notes" rows="2" class="form-control" formControlName="notes"></textarea>
+      </div>
+
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+          @if (submitting()) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          }
+          {{ isEdit ? 'Update' : 'Save' }}
+        </button>
+        <a routerLink="/job-cards" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>

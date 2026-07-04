@@ -1,0 +1,71 @@
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
+  <h1 class="h3 page-title mb-0">Customers</h1>
+  <a routerLink="/customers/new" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Add Customer
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="input-group mb-3" style="max-width: 24rem">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Search by name, phone or email"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+    </div>
+
+    @if (filtered().length) {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th class="d-none d-md-table-cell">Phone</th>
+              <th class="d-none d-lg-table-cell">Email</th>
+              <th class="d-none d-lg-table-cell">Address</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (customer of filtered(); track customer.id) {
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ customer.name }}</div>
+                  <div class="small text-muted d-md-none">{{ customer.phone }}</div>
+                </td>
+                <td class="d-none d-md-table-cell">{{ customer.phone }}</td>
+                <td class="d-none d-lg-table-cell">{{ customer.email || '—' }}</td>
+                <td class="d-none d-lg-table-cell">{{ customer.address || '—' }}</td>
+                <td class="text-end text-nowrap">
+                  <a
+                    [routerLink]="['/customers', customer.id, 'edit']"
+                    class="btn btn-sm btn-outline-secondary"
+                    title="Edit"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <button
+                    class="btn btn-sm btn-outline-danger ms-1"
+                    title="Delete"
+                    (click)="remove(customer.id, customer.name)"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-people" style="font-size: 2.5rem"></i>
+        <p class="mt-2 mb-0">No customers found.</p>
+      </div>
+    }
+  </div>
+</div>

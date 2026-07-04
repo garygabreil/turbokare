@@ -1,0 +1,84 @@
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
+  <h1 class="h3 page-title mb-0">Job Cards</h1>
+  <a routerLink="/job-cards/new" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>New Job Card
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="btn-group btn-group-sm mb-3 flex-wrap" role="group">
+      @for (status of ['all', 'pending', 'in-progress', 'completed', 'delivered']; track status) {
+        <button
+          type="button"
+          class="btn"
+          [class.btn-primary]="statusFilter() === status"
+          [class.btn-outline-secondary]="statusFilter() !== status"
+          (click)="statusFilter.set($any(status))"
+        >
+          {{ status }}
+        </button>
+      }
+    </div>
+
+    @if (filtered().length) {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Vehicle</th>
+              <th class="d-none d-md-table-cell">Customer</th>
+              <th>Complaint</th>
+              <th class="d-none d-lg-table-cell">Est. Cost</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (job of filtered(); track job.id) {
+              <tr>
+                <td class="fw-semibold">{{ job.vehicleLabel || '—' }}</td>
+                <td class="d-none d-md-table-cell">{{ job.customerName || '—' }}</td>
+                <td class="text-truncate" style="max-width: 220px">{{ job.complaint }}</td>
+                <td class="d-none d-lg-table-cell">{{ job.estimatedCost | currency }}</td>
+                <td>
+                  <select
+                    class="form-select form-select-sm w-auto d-inline-block"
+                    [ngModel]="job.status"
+                    (ngModelChange)="updateStatus(job.id, $event)"
+                  >
+                    <option value="pending">pending</option>
+                    <option value="in-progress">in-progress</option>
+                    <option value="completed">completed</option>
+                    <option value="delivered">delivered</option>
+                  </select>
+                </td>
+                <td class="text-end text-nowrap">
+                  <a
+                    [routerLink]="['/job-cards', job.id, 'edit']"
+                    class="btn btn-sm btn-outline-secondary"
+                    title="Edit"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <button
+                    class="btn btn-sm btn-outline-danger ms-1"
+                    title="Delete"
+                    (click)="remove(job.id)"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-clipboard2-check" style="font-size: 2.5rem"></i>
+        <p class="mt-2 mb-0">No job cards found.</p>
+      </div>
+    }
+  </div>
+</div>

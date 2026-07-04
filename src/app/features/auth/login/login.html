@@ -1,0 +1,71 @@
+<div class="auth-wrapper">
+  <div class="card p-4 p-sm-5 w-100" style="max-width: 26rem">
+    <div class="text-center mb-4">
+      <i class="bi bi-wrench-adjustable-circle text-primary" style="font-size: 2.5rem"></i>
+      <h1 class="h4 mt-2 page-title">Garage Manager</h1>
+      <p class="text-muted small mb-0">Sign in to your account</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="email">Email</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+          <input
+            id="email"
+            type="email"
+            class="form-control"
+            formControlName="email"
+            [class.is-invalid]="invalid('email')"
+            placeholder="you@example.com"
+          />
+        </div>
+        @if (invalid('email')) {
+          <div class="invalid-feedback">
+            @if (form.get('email')?.errors?.['required']) {
+              Email is required.
+            } @else {
+              Enter a valid email address.
+            }
+          </div>
+        }
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="password">Password</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          <input
+            id="password"
+            type="password"
+            class="form-control"
+            formControlName="password"
+            [class.is-invalid]="invalid('password')"
+            placeholder="Your password"
+          />
+        </div>
+        @if (invalid('password')) {
+          <div class="invalid-feedback">
+            @if (form.get('password')?.errors?.['required']) {
+              Password is required.
+            } @else {
+              Password must be at least 4 characters.
+            }
+          </div>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100" [disabled]="submitting()">
+        @if (submitting()) {
+          <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+        Sign in
+      </button>
+    </form>
+
+    <p class="text-center text-muted small mt-4 mb-0">
+      Don't have an account?
+      <a routerLink="/register" class="text-decoration-none">Create one</a>
+    </p>
+  </div>
+</div>

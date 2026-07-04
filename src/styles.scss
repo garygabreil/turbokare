@@ -1,0 +1,76 @@
+:root {
+  --gms-primary: #1f3a5f;
+  --gms-accent: #f97316;
+  --gms-bg: #f4f6fa;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--gms-bg);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1f2937;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--gms-primary);
+  --bs-btn-border-color: var(--gms-primary);
+  --bs-btn-hover-bg: #17293f;
+  --bs-btn-hover-border-color: #17293f;
+  --bs-btn-active-bg: #17293f;
+  --bs-btn-active-border-color: #17293f;
+}
+
+.text-primary {
+  color: var(--gms-primary) !important;
+}
+
+.bg-brand {
+  background-color: var(--gms-primary) !important;
+}
+
+.page-title {
+  font-weight: 600;
+  color: var(--gms-primary);
+}
+
+.card {
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.stat-card .stat-icon {
+  font-size: 1.75rem;
+  opacity: 0.9;
+}
+
+.table-responsive {
+  border-radius: 0.5rem;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1f3a5f 0%, #2c5282 100%);
+  padding: 1rem;
+}
+
+.invalid-feedback {
+  display: block;
+}

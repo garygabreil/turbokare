@@ -1,0 +1,174 @@
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 page-title mb-0">Inventory / Parts</h1>
+    <div class="small text-muted">
+      <span class="badge text-bg-light border">
+        <i class="bi bi-broadcast text-success me-1"></i>Live stock
+      </span>
+      Total stock value: <span class="fw-semibold">{{ totalValue() | currency }}</span>
+    </div>
+  </div>
+  <a routerLink="/inventory/new" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Add Part
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="input-group mb-3" style="max-width: 24rem">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Search by name, SKU or category"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+    </div>
+
+    @if (filtered().length) {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Part</th>
+              <th class="d-none d-md-table-cell">SKU</th>
+              <th class="d-none d-lg-table-cell">Category</th>
+              <th class="text-end">Price</th>
+              <th class="text-center">Stock</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (part of filtered(); track part.id) {
+              <tr>
+                <td class="fw-semibold">{{ part.name }}</td>
+                <td class="d-none d-md-table-cell text-uppercase">{{ part.sku }}</td>
+                <td class="d-none d-lg-table-cell">{{ part.category || '—' }}</td>
+                <td class="text-end">{{ part.unitPrice | currency }}</td>
+                <td class="text-center">
+                  <span
+                    class="badge rounded-pill"
+                    [class.text-bg-danger]="isLow(part.quantity, part.reorderLevel)"
+                    [class.text-bg-success]="!isLow(part.quantity, part.reorderLevel)"
+                  >
+                    {{ part.quantity }}
+                    @if (isLow(part.quantity, part.reorderLevel)) {
+                      <i class="bi bi-exclamation-triangle-fill ms-1"></i>
+                    }
+                  </span>
+                </td>
+                <td class="text-end text-nowrap">
+                  <button
+                    class="btn btn-sm btn-outline-success"
+                    title="Stock in"
+                    (click)="openAdjust(part, 'in')"
+                  >
+                    <i class="bi bi-box-arrow-in-down"></i>
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-warning ms-1"
+                    title="Stock out"
+                    (click)="openAdjust(part, 'out')"
+                  >
+                    <i class="bi bi-box-arrow-up"></i>
+                  </button>
+                  <a
+                    [routerLink]="['/inventory', part.id, 'edit']"
+                    class="btn btn-sm btn-outline-secondary ms-1"
+                    title="Edit"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <button
+                    class="btn btn-sm btn-outline-danger ms-1"
+                    title="Delete"
+                    (click)="remove(part.id, part.name)"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-box-seam" style="font-size: 2.5rem"></i>
+        <p class="mt-2 mb-0">No parts found.</p>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Stock adjustment modal -->
+@if (selectedPart(); as part) {
+  <div class="modal fade show d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            @switch (adjustType()) {
+              @case ('in') {
+                <i class="bi bi-box-arrow-in-down text-success me-2"></i>Stock In
+              }
+              @case ('out') {
+                <i class="bi bi-box-arrow-up text-warning me-2"></i>Stock Out
+              }
+              @default {
+                <i class="bi bi-sliders me-2"></i>Adjust Stock
+              }
+            }
+          </h5>
+          <button type="button" class="btn-close" (click)="closeAdjust()"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">
+            <span class="fw-semibold">{{ part.name }}</span>
+            <span class="text-muted">({{ part.sku }})</span>
+          </p>
+          <p class="small text-muted">Current balance: <strong>{{ part.quantity }}</strong></p>
+
+          <div class="mb-3">
+            <label class="form-label" for="adjQty">
+              {{ adjustType() === 'adjust' ? 'Set quantity to' : 'Quantity' }}
+            </label>
+            <input
+              id="adjQty"
+              type="number"
+              class="form-control"
+              [ngModel]="adjustQty()"
+              (ngModelChange)="adjustQty.set($event)"
+              min="0"
+            />
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label" for="adjReason">Reason / note</label>
+            <input
+              id="adjReason"
+              type="text"
+              class="form-control"
+              [ngModel]="adjustReason()"
+              (ngModelChange)="adjustReason.set($event)"
+              placeholder="e.g. Purchase, used on job, stocktake"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" (click)="closeAdjust()">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" (click)="submitAdjust()" [disabled]="saving()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm me-2"></span>
+            }
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show"></div>
+}

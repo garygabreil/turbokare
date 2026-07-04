@@ -1,0 +1,81 @@
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a routerLink="/customers" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h1 class="h3 page-title mb-0">{{ isEdit ? 'Edit' : 'Add' }} Customer</h1>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="name">Full name <span class="text-danger">*</span></label>
+        <input
+          id="name"
+          type="text"
+          class="form-control"
+          formControlName="name"
+          [class.is-invalid]="invalid('name')"
+        />
+        @if (invalid('name')) {
+          <div class="invalid-feedback">
+            @if (form.get('name')?.errors?.['required']) {
+              Name is required.
+            } @else {
+              Name must be at least 2 characters.
+            }
+          </div>
+        }
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="phone">Phone <span class="text-danger">*</span></label>
+        <input
+          id="phone"
+          type="tel"
+          class="form-control"
+          formControlName="phone"
+          [class.is-invalid]="invalid('phone')"
+        />
+        @if (invalid('phone')) {
+          <div class="invalid-feedback">
+            @if (form.get('phone')?.errors?.['required']) {
+              Phone is required.
+            } @else {
+              Enter a valid phone number.
+            }
+          </div>
+        }
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          class="form-control"
+          formControlName="email"
+          [class.is-invalid]="invalid('email')"
+        />
+        @if (invalid('email')) {
+          <div class="invalid-feedback">Enter a valid email address.</div>
+        }
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="address">Address</label>
+        <input id="address" type="text" class="form-control" formControlName="address" />
+      </div>
+
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+          @if (submitting()) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+          }
+          {{ isEdit ? 'Update' : 'Save' }}
+        </button>
+        <a routerLink="/customers" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
