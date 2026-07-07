@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { InrCurrencyPipe } from '../../shared/pipes/inr-currency.pipe';
 import { RouterLink } from '@angular/router';
 import { CustomerService } from '../../core/services/customer.service';
@@ -6,6 +7,9 @@ import { VehicleService } from '../../core/services/vehicle.service';
 import { JobCardService } from '../../core/services/job-card.service';
 import { PartService } from '../../core/services/part.service';
 import { InvoiceService } from '../../core/services/invoice.service';
+import { FollowUpService } from '../../core/services/follow-up.service';
+import { AuthService } from '../../core/services/auth.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { DayFilter } from '../../shared/day-filter/day-filter';
 import { ListSearch } from '../../shared/list-search/list-search';
 import { Pagination } from '../../shared/pagination/pagination';
@@ -25,11 +29,17 @@ import {
   SortState,
   toggleSort,
 } from '../../core/utils/table-utils';
+import {
+  buildAllServiceReminders,
+  reminderStatusClass,
+  reminderStatusLabel,
+} from '../../core/utils/service-reminder';
+import { formatReminderSummary, syncServiceReminderFollowUps } from '../../core/utils/service-reminder-sync';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, InrCurrencyPipe, DayFilter, ListSearch, Pagination, PageLoading],
+  imports: [RouterLink, InrCurrencyPipe, DecimalPipe, DayFilter, ListSearch, Pagination, PageLoading],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -39,12 +49,18 @@ export class Dashboard {
   private readonly jobCardService = inject(JobCardService);
   private readonly partService = inject(PartService);
   private readonly invoiceService = inject(InvoiceService);
+  private readonly followUpService = inject(FollowUpService);
+  private readonly auth = inject(AuthService);
+  private readonly notify = inject(NotificationService);
 
   private readonly customers = loadSignal(this.customerService.list());
   private readonly vehicles = loadSignal(this.vehicleService.list());
   private readonly jobCards = loadSignal(this.jobCardService.list());
   private readonly parts = loadSignal(this.partService.list());
   private readonly invoices = loadSignal(this.invoiceService.list());
+
+  private readonly remindersSynced = signal(false);
+  readonly syncingReminders = signal(false);
 
   readonly loading = isDataLoading(
     this.customers,
@@ -62,7 +78,25 @@ export class Dashboard {
   readonly stockSearch = signal('');
   readonly stockSort = signal<SortState>({ key: 'quantity', direction: 'asc' });
   readonly stockPage = signal(1);
+  readonly remindersSearch = signal('');
+  readonly remindersPage = signal(1);
   readonly pageSize = 5;
+
+  readonly reminderStatusClass = reminderStatusClass;
+  readonly reminderStatusLabel = reminderStatusLabel;
+  readonly formatReminderSummary = formatReminderSummary;
+
+  constructor() {
+    effect(() => {
+      const vehicles = this.vehicles();
+      const jobCards = this.jobCards();
+      if (vehicles === undefined || jobCards === undefined || this.remindersSynced()) {
+        return;
+      }
+      this.remindersSynced.set(true);
+      void this.runReminderSync(false);
+    });
+  }
 
   readonly filteredJobs = computed(() =>
     applyDayFilter(orEmpty(this.jobCards()), (j) => j.createdAt, this.dayMode(), this.viewDate()),
@@ -70,6 +104,26 @@ export class Dashboard {
 
   readonly filteredInvoices = computed(() =>
     applyDayFilter(orEmpty(this.invoices()), (i) => i.createdAt, this.dayMode(), this.viewDate()),
+  );
+
+  readonly serviceReminders = computed(() =>
+    buildAllServiceReminders(orEmpty(this.vehicles()), orEmpty(this.jobCards())),
+  );
+
+  readonly serviceReminderCount = computed(() => this.serviceReminders().length);
+
+  readonly filteredReminders = computed(() => {
+    return searchByFields(this.serviceReminders(), this.remindersSearch(), [
+      (r) => r.registrationNo,
+      (r) => r.customerName,
+      (r) => r.vehicleLabel,
+      (r) => r.fuelType,
+      (r) => r.note,
+    ]);
+  });
+
+  readonly pagedReminders = computed(() =>
+    paginateItems(this.filteredReminders(), this.remindersPage(), this.pageSize),
   );
 
   readonly totalCustomers = computed(() => {
@@ -140,6 +194,34 @@ export class Dashboard {
     paginateItems(this.stockRows(), this.stockPage(), this.pageSize),
   );
 
+  async runReminderSync(showToast: boolean): Promise<void> {
+    const vehicles = this.vehicles();
+    const jobCards = this.jobCards();
+    if (vehicles === undefined || jobCards === undefined) {
+      return;
+    }
+    this.syncingReminders.set(true);
+    try {
+      const created = await syncServiceReminderFollowUps(
+        this.followUpService,
+        orEmpty(vehicles),
+        orEmpty(jobCards),
+        this.auth.user()?.name,
+      );
+      if (showToast) {
+        this.notify.success(
+          created > 0 ? `${created} service reminder(s) added to follow-ups.` : 'Reminders are up to date.',
+        );
+      }
+    } catch (err) {
+      if (showToast) {
+        this.notify.error((err as Error).message);
+      }
+    } finally {
+      this.syncingReminders.set(false);
+    }
+  }
+
   setJobsSort(key: string): void {
     this.jobsSort.update((s) => toggleSort(s, key));
     this.jobsPage.set(1);
@@ -166,6 +248,10 @@ export class Dashboard {
     return calcRowNumber(this.stockPage(), this.pageSize, index);
   }
 
+  remindersRowNumber(index: number): number {
+    return calcRowNumber(this.remindersPage(), this.pageSize, index);
+  }
+
   onJobsSearch(value: string): void {
     this.jobsSearch.set(value);
     this.jobsPage.set(1);
@@ -174,6 +260,11 @@ export class Dashboard {
   onStockSearch(value: string): void {
     this.stockSearch.set(value);
     this.stockPage.set(1);
+  }
+
+  onRemindersSearch(value: string): void {
+    this.remindersSearch.set(value);
+    this.remindersPage.set(1);
   }
 
   statusClass(status: string): string {

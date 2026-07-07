@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CustomerService } from '../../../core/services/customer.service';
+import { resolveVehicleMakeModel } from '../../../core/constants/indian-vehicles';
 import { VehicleService } from '../../../core/services/vehicle.service';
 import { JobCardService } from '../../../core/services/job-card.service';
 import { FollowUpService } from '../../../core/services/follow-up.service';
@@ -12,6 +13,7 @@ import { Pagination } from '../../../shared/pagination/pagination';
 import { ListSearch } from '../../../shared/list-search/list-search';
 import { PageLoading } from '../../../shared/page-loading/page-loading';
 import { FormKeyboardDirective } from '../../../shared/directives/form-keyboard.directive';
+import { VehicleMakeModel } from '../../../shared/vehicle-make-model/vehicle-make-model';
 import { isDataLoading, loadSignal, orEmpty } from '../../../core/utils/loading-signal';
 import { vehiclesForCustomer } from '../../../core/utils/customer-vehicles';
 import {
@@ -44,6 +46,7 @@ export interface CustomerRow {
     ListSearch,
     PageLoading,
     FormKeyboardDirective,
+    VehicleMakeModel,
   ],
   templateUrl: './customer-list.html',
 })
@@ -81,6 +84,9 @@ export class CustomerList {
     registrationNo: ['', [Validators.required]],
     make: [''],
     model: [''],
+    makeCustom: [''],
+    modelCustom: [''],
+    year: [null as number | null],
   });
 
   readonly summary = computed(() => {
@@ -168,6 +174,9 @@ export class CustomerList {
       registrationNo: '',
       make: '',
       model: '',
+      makeCustom: '',
+      modelCustom: '',
+      year: null,
     });
     this.showAddModal.set(true);
   }
@@ -195,6 +204,7 @@ export class CustomerList {
     }
     this.saving.set(true);
     const value = this.addForm.getRawValue();
+    const { make, model } = resolveVehicleMakeModel(value);
     try {
       const customerRef = (await this.customerService.create({
         name: value.name,
@@ -206,8 +216,9 @@ export class CustomerList {
         customerId: customerRef.id,
         customerName: value.name,
         registrationNo: value.registrationNo,
-        make: value.make,
-        model: value.model,
+        make,
+        model,
+        year: value.year,
       } as never);
 
       this.notify.success('Customer added.');

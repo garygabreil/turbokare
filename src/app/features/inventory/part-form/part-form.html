@@ -25,18 +25,14 @@
       </div>
 
       <div class="col-12 col-md-6">
-        <label class="form-label" for="sku">SKU <span class="text-danger">*</span></label>
+        <label class="form-label" for="sku">SKU</label>
         <input
           id="sku"
           type="text"
           class="form-control text-uppercase"
           formControlName="sku"
-          placeholder="e.g. BP-001"
-          [class.is-invalid]="invalid('sku')"
+          placeholder="Optional — e.g. BP-001"
         />
-        @if (invalid('sku')) {
-          <div class="invalid-feedback">SKU is required.</div>
-        }
       </div>
 
       <div class="col-12 col-md-6">

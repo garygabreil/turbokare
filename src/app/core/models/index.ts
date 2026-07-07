@@ -14,6 +14,7 @@ export interface Customer {
 }
 
 export type FollowUpStatus = 'pending' | 'done';
+export type FollowUpType = 'general' | 'service_recommendation' | 'service_reminder';
 
 export interface CustomerFollowUp {
   id?: string;
@@ -24,6 +25,9 @@ export interface CustomerFollowUp {
   note: string;
   dueDate: string;
   status: FollowUpStatus;
+  followUpType?: FollowUpType;
+  sourceJobCardId?: string;
+  recommendationId?: string;
   createdBy?: string;
   createdAt?: number;
   completedAt?: number;
@@ -39,10 +43,24 @@ export interface Vehicle {
   registrationNo: string;
   color?: string;
   odometer?: number | null;
+  fuelType?: string;
+  lastServiceOdometer?: number | null;
   createdAt?: number;
 }
 
 export type JobStatus = 'pending' | 'in-progress' | 'completed' | 'delivered';
+
+export type RecommendationPriority = 'urgent' | 'soon' | 'optional';
+export type RecommendationStatus = 'pending' | 'accepted' | 'declined' | 'scheduled';
+
+export interface ServiceRecommendation {
+  id: string;
+  description: string;
+  estimatedCost?: number | null;
+  priority: RecommendationPriority;
+  status: RecommendationStatus;
+  notes?: string;
+}
 
 export interface JobCard {
   id?: string;
@@ -55,13 +73,16 @@ export interface JobCard {
   status: JobStatus;
   estimatedCost?: number | null;
   notes?: string;
+  odometer?: number | null;
+  fuelType?: string;
+  recommendations?: ServiceRecommendation[];
   createdAt?: number;
 }
 
 export interface Part {
   id?: string;
   name: string;
-  sku: string;
+  sku?: string;
   category?: string;
   quantity: number;
   reorderLevel: number;
@@ -90,6 +111,7 @@ export interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   partId?: string;
+  itemType?: 'part' | 'service';
 }
 
 export type InvoiceStatus = 'unpaid' | 'paid' | 'partial';

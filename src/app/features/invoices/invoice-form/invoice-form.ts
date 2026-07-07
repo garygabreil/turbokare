@@ -4,6 +4,7 @@ import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { InvoiceService } from '../../../core/services/invoice.service';
+import { JobCardService } from '../../../core/services/job-card.service';
 import { CustomerService } from '../../../core/services/customer.service';
 import { PartService } from '../../../core/services/part.service';
 import { StockMovementService } from '../../../core/services/stock-movement.service';
@@ -14,6 +15,12 @@ import { SearchableSelect, SelectOption } from '../../../shared/searchable-selec
 import { FormKeyboardDirective } from '../../../shared/directives/form-keyboard.directive';
 import { PageLoading } from '../../../shared/page-loading/page-loading';
 import { loadSignal, orEmpty } from '../../../core/utils/loading-signal';
+import {
+  calculateInvoiceAmounts,
+  calculateLineAmounts,
+  normalizeInvoiceItem,
+  roundMoney,
+} from '../../../core/utils/invoice-math';
 import { formatInr } from '../../../shared/pipes/inr-currency.pipe';
 
 @Component({
@@ -26,6 +33,7 @@ import { formatInr } from '../../../shared/pipes/inr-currency.pipe';
 export class InvoiceForm {
   private readonly fb = inject(FormBuilder);
   private readonly invoiceService = inject(InvoiceService);
+  private readonly jobCardService = inject(JobCardService);
   private readonly customerService = inject(CustomerService);
   private readonly partService = inject(PartService);
   private readonly stockService = inject(StockMovementService);
@@ -40,7 +48,7 @@ export class InvoiceForm {
   readonly customerOptions = computed<SelectOption[]>(() =>
     orEmpty(this.customers()).map((c) => ({ value: c.id ?? '', label: c.name, sublabel: c.phone })),
   );
-  readonly descriptionOptions = computed<SelectOption[]>(() => {
+  readonly partDescriptionOptions = computed<SelectOption[]>(() => {
     const seen = new Set<string>();
     const options: SelectOption[] = [];
 
@@ -98,7 +106,8 @@ export class InvoiceForm {
       (this.isEdit && this.recordLoading()),
   );
   private readonly originalItems = signal<InvoiceItem[]>([]);
-  readonly lineStockErrors = signal<Record<number, string>>({});
+  readonly linkedJobCardId = signal<string | null>(null);
+  readonly lineStockErrors = signal<Record<string, string>>({});
 
   get selectedCustomerId(): string {
     return this.form.get('customerId')?.value ?? '';
@@ -110,17 +119,33 @@ export class InvoiceForm {
     control?.markAsDirty();
   }
 
-  onDescriptionValue(index: number, text: string): void {
-    const row = this.items.at(index);
-    const normalized = text.trim().toUpperCase();
-    row.get('description')?.setValue(normalized);
-    row.get('description')?.markAsDirty();
-    this.applyPartToRow(index, normalized);
+  onPartDescriptionValue(index: number, text: string): void {
+    this.onLineDescriptionValue(this.partItems, index, text);
+  }
+
+  onPartDescriptionSelect(index: number, opt: SelectOption): void {
+    this.onLineDescriptionSelect(this.partItems, index, opt);
+  }
+
+  onPartQuantityChange(index: number): void {
     this.validateAllLineStock(true);
   }
 
-  onDescriptionSelect(index: number, opt: SelectOption): void {
-    const row = this.items.at(index);
+  partLineStockError(index: number): string {
+    return this.lineStockErrors()[`part-${index}`] ?? '';
+  }
+
+  private onLineDescriptionValue(array: FormArray, index: number, text: string): void {
+    const row = array.at(index);
+    const normalized = text.trim().toUpperCase();
+    row.get('description')?.setValue(normalized);
+    row.get('description')?.markAsDirty();
+    this.applyPartToRow(row, normalized);
+    this.validateAllLineStock(true);
+  }
+
+  private onLineDescriptionSelect(array: FormArray, index: number, opt: SelectOption): void {
+    const row = array.at(index);
     const label = opt.label.toUpperCase();
     row.get('description')?.setValue(label);
     row.get('description')?.markAsDirty();
@@ -135,22 +160,29 @@ export class InvoiceForm {
     if (typeof partId === 'string' && partId) {
       row.get('partId')?.setValue(partId);
     } else {
-      this.applyPartToRow(index, label);
+      this.applyPartToRow(row, label);
     }
     this.validateAllLineStock(true);
   }
 
-  onQuantityChange(index: number): void {
-    this.validateAllLineStock(true);
-  }
-
   lineStockError(index: number): string {
-    return this.lineStockErrors()[index] ?? '';
+    return this.partLineStockError(index);
   }
 
-  private applyPartToRow(index: number, description: string): void {
+  onDescriptionValue(index: number, text: string): void {
+    this.onPartDescriptionValue(index, text);
+  }
+
+  onDescriptionSelect(index: number, opt: SelectOption): void {
+    this.onPartDescriptionSelect(index, opt);
+  }
+
+  onQuantityChange(index: number): void {
+    this.onPartQuantityChange(index);
+  }
+
+  private applyPartToRow(row: ReturnType<FormArray['at']>, description: string): void {
     const part = this.findPartForDescription(description);
-    const row = this.items.at(index);
     if (part) {
       row.get('unitPrice')?.setValue(part.unitPrice);
       row.get('unitPrice')?.markAsDirty();
@@ -161,11 +193,11 @@ export class InvoiceForm {
   }
 
   private validateAllLineStock(showToast: boolean): void {
-    const errors: Record<number, string> = {};
-    this.items.controls.forEach((_, index) => {
+    const errors: Record<string, string> = {};
+    this.partItems.controls.forEach((_, index) => {
       const message = this.getLineStockError(index);
       if (message) {
-        errors[index] = message;
+        errors[`part-${index}`] = message;
       }
     });
     this.lineStockErrors.set(errors);
@@ -175,7 +207,7 @@ export class InvoiceForm {
   }
 
   private getLineStockError(index: number): string | null {
-    const row = this.items.at(index);
+    const row = this.partItems.at(index);
     const part = this.resolvePart({
       partId: row.get('partId')?.value ?? '',
       description: row.get('description')?.value ?? '',
@@ -201,7 +233,7 @@ export class InvoiceForm {
     }
 
     let usedOnOtherLines = 0;
-    this.items.controls.forEach((ctrl, i) => {
+    this.partItems.controls.forEach((ctrl, i) => {
       if (i === excludeIndex) {
         return;
       }
@@ -213,6 +245,9 @@ export class InvoiceForm {
     let originalOnInvoice = 0;
     if (this.isEdit) {
       for (const item of this.originalItems()) {
+        if (item.itemType === 'service') {
+          continue;
+        }
         const p = this.resolvePart(item);
         if (p?.id === partId) {
           originalOnInvoice += item.quantity;
@@ -238,8 +273,12 @@ export class InvoiceForm {
     return this.findPartForDescription(item.description);
   }
 
+  partItemDescription(index: number): string {
+    return this.partItems.at(index).get('description')?.value ?? '';
+  }
+
   itemDescription(index: number): string {
-    return this.items.at(index).get('description')?.value ?? '';
+    return this.partItemDescription(index);
   }
 
   readonly form = this.fb.nonNullable.group({
@@ -253,7 +292,8 @@ export class InvoiceForm {
       [Validators.pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)],
     ],
     status: ['unpaid' as 'unpaid' | 'partial' | 'paid', [Validators.required]],
-    items: this.fb.array([this.createItem()]),
+    partItems: this.fb.array([] as ReturnType<typeof this.createPartItem>[]),
+    serviceItems: this.fb.array([] as ReturnType<typeof this.createServiceItem>[]),
   });
 
   constructor() {
@@ -261,12 +301,15 @@ export class InvoiceForm {
       firstValueFrom(this.invoiceService.get(this.id))
         .then((invoice) => {
           if (invoice) {
-            this.items.clear();
-            (invoice.items ?? []).forEach((item) => this.items.push(this.createItem(item)));
-            if (!this.items.length) {
-              this.items.push(this.createItem());
-            }
-            this.originalItems.set(structuredClone(invoice.items ?? []));
+            this.linkedJobCardId.set(invoice.jobCardId ?? null);
+            const allItems = invoice.items ?? [];
+            const parts = allItems.filter((i) => i.itemType !== 'service');
+            const services = allItems.filter((i) => i.itemType === 'service');
+            this.partItems.clear();
+            parts.forEach((item) => this.partItems.push(this.createPartItem(item)));
+            this.serviceItems.clear();
+            services.forEach((item) => this.serviceItems.push(this.createServiceItem(item)));
+            this.originalItems.set(structuredClone(allItems));
             this.form.patchValue({
               invoiceNo: invoice.invoiceNo,
               customerId: invoice.customerId,
@@ -280,7 +323,38 @@ export class InvoiceForm {
         })
         .catch(() => this.notify.error('Could not load invoice.'))
         .finally(() => this.recordLoading.set(false));
+    } else {
+      const jobCardId = this.route.snapshot.queryParamMap.get('jobCardId');
+      if (jobCardId) {
+        this.linkedJobCardId.set(jobCardId);
+        this.prefillFromJobCard(jobCardId);
+      }
     }
+  }
+
+  private prefillFromJobCard(jobCardId: string): void {
+    firstValueFrom(this.jobCardService.get(jobCardId))
+      .then((job) => {
+        if (!job) {
+          return;
+        }
+        this.form.patchValue({ customerId: job.customerId });
+        const accepted = (job.recommendations ?? []).filter((rec) => rec.status === 'accepted');
+        accepted.forEach((rec) => {
+          this.serviceItems.push(
+            this.createServiceItem({
+              description: rec.description.trim().toUpperCase(),
+              quantity: 1,
+              unitPrice: rec.estimatedCost ?? 0,
+              itemType: 'service',
+            }),
+          );
+        });
+        if (accepted.length) {
+          this.notify.success(`Added ${accepted.length} accepted service(s) from job card.`);
+        }
+      })
+      .catch(() => this.notify.error('Could not load job card for invoice.'));
   }
 
   private generateInvoiceNo(): string {
@@ -289,7 +363,7 @@ export class InvoiceForm {
     return `INV-${stamp}-${Math.floor(1000 + Math.random() * 9000)}`;
   }
 
-  private createItem(item?: InvoiceItem) {
+  private createPartItem(item?: InvoiceItem) {
     const part = item ? this.findPartForDescription(item.description) : undefined;
     return this.fb.nonNullable.group({
       description: [item?.description ?? '', [Validators.required]],
@@ -299,22 +373,57 @@ export class InvoiceForm {
     });
   }
 
+  private createServiceItem(item?: InvoiceItem) {
+    return this.fb.nonNullable.group({
+      description: [item?.description ?? '', [Validators.required]],
+      quantity: [item?.quantity ?? 1, [Validators.required, Validators.min(1)]],
+      unitPrice: [item?.unitPrice ?? 0, [Validators.required, Validators.min(0)]],
+    });
+  }
+
+  private createItem(item?: InvoiceItem) {
+    return this.createPartItem(item);
+  }
+
+  get partItems(): FormArray {
+    return this.form.get('partItems') as FormArray;
+  }
+
+  get serviceItems(): FormArray {
+    return this.form.get('serviceItems') as FormArray;
+  }
+
   get items(): FormArray {
-    return this.form.get('items') as FormArray;
+    return this.partItems;
   }
 
   get isGst(): boolean {
     return this.form.get('billingType')?.value === 'gst';
   }
 
+  addPartItem(): void {
+    this.partItems.push(this.createPartItem());
+  }
+
+  addServiceItem(): void {
+    this.serviceItems.push(this.createServiceItem());
+  }
+
   addItem(): void {
-    this.items.push(this.createItem());
+    this.addPartItem();
+  }
+
+  removePartItem(index: number): void {
+    this.partItems.removeAt(index);
+    this.validateAllLineStock(false);
+  }
+
+  removeServiceItem(index: number): void {
+    this.serviceItems.removeAt(index);
   }
 
   removeItem(index: number): void {
-    if (this.items.length > 1) {
-      this.items.removeAt(index);
-    }
+    this.removePartItem(index);
   }
 
   invalid(control: string): boolean {
@@ -322,17 +431,69 @@ export class InvoiceForm {
     return !!c && c.invalid && (c.touched || c.dirty);
   }
 
-  itemInvalid(index: number, control: string): boolean {
-    const c = this.items.at(index).get(control);
+  itemInvalid(array: FormArray, index: number, control: string): boolean {
+    const c = array.at(index).get(control);
     return !!c && c.invalid && (c.touched || c.dirty);
   }
 
+  partItemInvalid(index: number, control: string): boolean {
+    return this.itemInvalid(this.partItems, index, control);
+  }
+
+  serviceItemInvalid(index: number, control: string): boolean {
+    return this.itemInvalid(this.serviceItems, index, control);
+  }
+
+  itemInvalidLegacy(index: number, control: string): boolean {
+    return this.partItemInvalid(index, control);
+  }
+
+  lineLineAmount(array: FormArray, index: number, itemType: 'part' | 'service'): number {
+    const row = array.at(index);
+    const line = calculateLineAmounts(
+      Number(row.get('quantity')?.value) || 0,
+      Number(row.get('unitPrice')?.value) || 0,
+      this.form.get('billingType')?.value ?? 'non-gst',
+      this.form.get('gstType')?.value ?? undefined,
+      this.effectiveGstPercent,
+      itemType,
+    );
+    return line.amount;
+  }
+
+  private buildDraftItems(): InvoiceItem[] {
+    const value = this.form.getRawValue();
+    const parts: InvoiceItem[] = value.partItems
+      .filter((item) => item.description?.trim())
+      .map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        partId: item.partId || undefined,
+        itemType: 'part' as const,
+      }));
+    const services: InvoiceItem[] = value.serviceItems
+      .filter((item) => item.description?.trim())
+      .map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        itemType: 'service' as const,
+      }));
+    return [...parts, ...services];
+  }
+
+  private invoiceAmounts() {
+    return calculateInvoiceAmounts(
+      this.buildDraftItems(),
+      this.form.get('billingType')?.value ?? 'non-gst',
+      this.form.get('gstType')?.value ?? undefined,
+      this.effectiveGstPercent,
+    );
+  }
+
   get subtotal(): number {
-    return this.items.controls.reduce((sum, ctrl) => {
-      const qty = Number(ctrl.get('quantity')?.value) || 0;
-      const price = Number(ctrl.get('unitPrice')?.value) || 0;
-      return sum + qty * price;
-    }, 0);
+    return this.invoiceAmounts().subtotal;
   }
 
   private get effectiveGstPercent(): number {
@@ -340,32 +501,42 @@ export class InvoiceForm {
   }
 
   get cgst(): number {
-    if (!this.isGst || this.form.get('gstType')?.value !== 'cgst_sgst') {
-      return 0;
-    }
-    return (this.subtotal * this.effectiveGstPercent) / 100 / 2;
+    return this.invoiceAmounts().cgst;
   }
 
   get sgst(): number {
-    return this.cgst;
+    return this.invoiceAmounts().sgst;
   }
 
   get igst(): number {
-    if (!this.isGst || this.form.get('gstType')?.value !== 'igst') {
-      return 0;
-    }
-    return (this.subtotal * this.effectiveGstPercent) / 100;
+    return this.invoiceAmounts().igst;
   }
 
   get taxTotal(): number {
-    return this.cgst + this.sgst + this.igst;
+    return this.invoiceAmounts().taxTotal;
   }
 
   get total(): number {
-    return this.subtotal + this.taxTotal;
+    return this.invoiceAmounts().total;
+  }
+
+  private pruneEmptyLineItems(): void {
+    for (let i = this.partItems.length - 1; i >= 0; i--) {
+      const desc = this.partItems.at(i).get('description')?.value?.trim();
+      if (!desc) {
+        this.partItems.removeAt(i);
+      }
+    }
+    for (let i = this.serviceItems.length - 1; i >= 0; i--) {
+      const desc = this.serviceItems.at(i).get('description')?.value?.trim();
+      if (!desc) {
+        this.serviceItems.removeAt(i);
+      }
+    }
   }
 
   async submit(): Promise<void> {
+    this.pruneEmptyLineItems();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -378,12 +549,39 @@ export class InvoiceForm {
     this.submitting.set(true);
     const value = this.form.getRawValue();
     const customer = orEmpty(this.customers()).find((c) => c.id === value.customerId);
-    const items: InvoiceItem[] = value.items.map((item) => ({
-      description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      partId: item.partId || undefined,
-    }));
+    const partRows: InvoiceItem[] = value.partItems
+      .filter((item) => item.description?.trim())
+      .map((item) =>
+        normalizeInvoiceItem({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          partId: item.partId || undefined,
+          itemType: 'part',
+        }),
+      );
+    const serviceRows: InvoiceItem[] = value.serviceItems
+      .filter((item) => item.description?.trim())
+      .map((item) =>
+        normalizeInvoiceItem({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          itemType: 'service',
+        }),
+      );
+    const items: InvoiceItem[] = [...partRows, ...serviceRows];
+    if (!items.length) {
+      this.notify.error('Add at least one part or service line.');
+      this.submitting.set(false);
+      return;
+    }
+    const amounts = calculateInvoiceAmounts(
+      items,
+      value.billingType,
+      this.isGst ? value.gstType : undefined,
+      this.effectiveGstPercent,
+    );
     const stockError = this.isEdit
       ? this.validateStockForEdit(this.originalItems(), items)
       : this.validateStock(items);
@@ -396,18 +594,19 @@ export class InvoiceForm {
       invoiceNo: value.invoiceNo,
       customerId: value.customerId,
       customerName: customer?.name ?? '',
+      jobCardId: this.linkedJobCardId() ?? undefined,
       items,
       billingType: value.billingType,
       gstType: this.isGst ? value.gstType : '',
       gstPercent: this.effectiveGstPercent,
       customerGstin: value.customerGstin ?? '',
       status: value.status,
-      subtotal: this.subtotal,
-      cgst: this.cgst,
-      sgst: this.sgst,
-      igst: this.igst,
-      taxTotal: this.taxTotal,
-      total: this.total,
+      subtotal: amounts.subtotal,
+      cgst: amounts.cgst,
+      sgst: amounts.sgst,
+      igst: amounts.igst,
+      taxTotal: amounts.taxTotal,
+      total: amounts.total,
     };
     try {
       if (this.isEdit && this.id) {

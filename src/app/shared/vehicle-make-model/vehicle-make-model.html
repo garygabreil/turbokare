@@ -1,0 +1,117 @@
+<div
+  class="vehicle-fields-grid"
+  [class.vehicle-fields-grid--compact]="compact()"
+  [class.vehicle-fields-grid--modal]="compact()"
+>
+  @if (showRegistration()) {
+    <div class="vehicle-field">
+      <label class="form-label cv-field-label" [for]="registrationId()">
+        Registration @if (registrationRequired()) {
+          <span class="text-danger">*</span>
+        }
+      </label>
+      <input
+        [id]="registrationId()"
+        type="text"
+        [class]="fieldClass"
+        formControlName="registrationNo"
+        placeholder="MH12AB1234"
+        [class.is-invalid]="registrationInvalid()"
+      />
+      @if (registrationInvalid() && registrationError()) {
+        <div class="invalid-feedback d-block">{{ registrationError() }}</div>
+      }
+    </div>
+  }
+
+  <div class="vehicle-field">
+    <label class="form-label cv-field-label" [for]="makeId()">Make</label>
+    @if (customMakeMode()) {
+      <input
+        [id]="makeId()"
+        type="text"
+        [class]="fieldClass"
+        formControlName="makeCustom"
+        placeholder="TYPE MAKE"
+        autocomplete="off"
+        (input)="onCustomMakeInput($event)"
+      />
+      <button type="button" class="btn btn-link btn-sm px-0 mt-1 make-list-link" (click)="useMakeList()">
+        Pick from list
+      </button>
+    } @else {
+      <select [id]="makeId()" [class]="selectClass" formControlName="make" (change)="onMakeSelect($event)">
+        <option value="">SELECT MAKE</option>
+        @for (make of carMakes; track make) {
+          <option [value]="make">{{ make }}</option>
+        }
+        <option [value]="otherMakeValue">OTHER (TYPE BELOW)</option>
+      </select>
+    }
+  </div>
+
+  <div class="vehicle-field">
+    <label class="form-label cv-field-label" [for]="modelId()">Model</label>
+    @if (hasModelOptions()) {
+      <select
+        [id]="modelId() + '-pick'"
+        [class]="selectClass"
+        [value]="''"
+        (change)="pickModel($event)"
+      >
+        <option value="">SELECT MODEL</option>
+        @for (model of models(); track model) {
+          <option [value]="model">{{ model }}</option>
+        }
+      </select>
+    }
+    <input
+      [id]="modelId()"
+      type="text"
+      [class]="fieldClass + (hasModelOptions() ? ' mt-1' : '')"
+      formControlName="model"
+      [placeholder]="hasModelOptions() ? 'OR TYPE MODEL' : 'TYPE MODEL'"
+      autocomplete="off"
+    />
+  </div>
+
+  @if (showYear()) {
+    <div class="vehicle-field">
+      <label class="form-label cv-field-label" [for]="yearId()">Year</label>
+      <input
+        [id]="yearId()"
+        type="number"
+        [class]="plainFieldClass"
+        formControlName="year"
+        min="1980"
+        max="2099"
+        placeholder="2020"
+      />
+    </div>
+  }
+
+  @if (showFuelType()) {
+    <div class="vehicle-field">
+      <label class="form-label cv-field-label" [for]="fuelId()">Fuel</label>
+      <select [id]="fuelId()" [class]="selectClass" formControlName="fuelType">
+        <option value="">SELECT</option>
+        @for (fuel of fuelTypes; track fuel) {
+          <option [value]="fuel">{{ fuel }}</option>
+        }
+      </select>
+    </div>
+  }
+
+  @if (showColor()) {
+    <div class="vehicle-field">
+      <label class="form-label cv-field-label" [for]="colorId()">Color</label>
+      <input
+        [id]="colorId()"
+        type="text"
+        [class]="plainFieldClass"
+        formControlName="color"
+        placeholder="WHITE"
+      />
+    </div>
+  }
+</div>

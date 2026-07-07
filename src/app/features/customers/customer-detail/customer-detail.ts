@@ -14,7 +14,16 @@ import { Customer, CustomerFollowUp, Vehicle } from '../../../core/models';
 import { InrCurrencyPipe } from '../../../shared/pipes/inr-currency.pipe';
 import { PageLoading } from '../../../shared/page-loading/page-loading';
 import { FormKeyboardDirective } from '../../../shared/directives/form-keyboard.directive';
+import { VehicleMakeModel } from '../../../shared/vehicle-make-model/vehicle-make-model';
 import { isDataLoading, loadSignal, orEmpty } from '../../../core/utils/loading-signal';
+import {
+  buildAllServiceReminders,
+  reminderStatusClass,
+  reminderStatusLabel,
+  serviceReminderForVehicle,
+} from '../../../core/utils/service-reminder';
+import { formatReminderSummary } from '../../../core/utils/service-reminder-sync';
+import { resolveVehicleMakeModel } from '../../../core/constants/indian-vehicles';
 import { vehiclesForCustomer } from '../../../core/utils/customer-vehicles';
 
 export interface ServiceHistoryRow {
@@ -40,6 +49,7 @@ export interface ServiceHistoryRow {
     InrCurrencyPipe,
     PageLoading,
     FormKeyboardDirective,
+    VehicleMakeModel,
   ],
   templateUrl: './customer-detail.html',
 })
@@ -70,8 +80,11 @@ export class CustomerDetail implements OnInit {
     registrationNo: ['', [Validators.required]],
     make: [''],
     model: [''],
+    makeCustom: [''],
+    modelCustom: [''],
     color: [''],
     year: [null as number | null],
+    fuelType: [''],
   });
 
   private readonly vehicles = loadSignal(this.vehicleService.list());
@@ -187,6 +200,25 @@ export class CustomerDetail implements OnInit {
     return this.pendingFollowUps().filter((f) => f.vehicleId === vehicle.id);
   });
 
+  readonly selectedVehicleReminder = computed(() => {
+    const vehicle = this.selectedVehicle();
+    if (!vehicle) {
+      return null;
+    }
+    return serviceReminderForVehicle(vehicle.id, orEmpty(this.vehicles()), orEmpty(this.jobCards()));
+  });
+
+  readonly customerServiceReminders = computed(() =>
+    buildAllServiceReminders(
+      this.customerVehicles(),
+      orEmpty(this.jobCards()),
+    ),
+  );
+
+  readonly reminderStatusClass = reminderStatusClass;
+  readonly reminderStatusLabel = reminderStatusLabel;
+  readonly formatReminderSummary = formatReminderSummary;
+
   vehicleJobCount(vehicleId: string | undefined): number {
     if (!vehicleId) {
       return 0;
@@ -207,8 +239,11 @@ export class CustomerDetail implements OnInit {
       registrationNo: '',
       make: '',
       model: '',
+      makeCustom: '',
+      modelCustom: '',
       color: '',
       year: null,
+      fuelType: '',
     });
     this.showAddVehicle.set(true);
   }
@@ -233,15 +268,17 @@ export class CustomerDetail implements OnInit {
     }
     this.savingVehicle.set(true);
     const value = this.addVehicleForm.getRawValue();
+    const { make, model } = resolveVehicleMakeModel(value);
     try {
       await this.vehicleService.create({
         customerId: this.customerId,
         customerName: customer.name,
         registrationNo: value.registrationNo.trim(),
-        make: value.make.trim(),
-        model: value.model.trim(),
+        make,
+        model,
         color: value.color.trim() || undefined,
         year: value.year,
+        fuelType: value.fuelType || undefined,
       } as never);
       this.notify.success('Vehicle registered.');
       this.closeAddVehicle();

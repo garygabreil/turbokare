@@ -407,6 +407,12 @@
             </div>
             <div class="col-6 col-md-4">
               <div class="vehicle-detail-stat">
+                <div class="vehicle-detail-stat__label">Fuel type</div>
+                <div class="vehicle-detail-stat__value">{{ vehicle.fuelType || '—' }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="vehicle-detail-stat">
                 <div class="vehicle-detail-stat__label">Odometer</div>
                 <div class="vehicle-detail-stat__value">
                   @if (vehicle.odometer != null) {
@@ -417,6 +423,18 @@
                 </div>
               </div>
             </div>
+            @if (selectedVehicleReminder(); as reminder) {
+              @if (reminder.status === 'due_soon' || reminder.status === 'overdue') {
+                <div class="col-12">
+                  <div class="alert alert-warning mb-0 py-2 small">
+                    <strong><i class="bi bi-speedometer2 me-1"></i>Service reminder:</strong>
+                    Due at {{ reminder.nextServiceOdometer | number }} km
+                    ({{ formatReminderSummary(reminder) }}).
+                    {{ reminder.fuelType }} — every {{ reminder.intervalKm | number }} km.
+                  </div>
+                </div>
+              }
+            }
             <div class="col-6 col-md-4">
               <div class="vehicle-detail-stat">
                 <div class="vehicle-detail-stat__label">Registered</div>
@@ -501,41 +519,28 @@
 
 @if (showAddVehicle()) {
   <div class="modal fade show d-block" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered customer-vehicle-modal">
       <div class="modal-content">
         <form [formGroup]="addVehicleForm" (ngSubmit)="saveVehicle()" appFormKeyboard novalidate>
           <div class="modal-header">
             <h5 class="modal-title">Register vehicle</h5>
             <button type="button" class="btn-close" (click)="closeAddVehicle()"></button>
           </div>
-          <div class="modal-body row g-3">
-            <div class="col-12">
-              <label class="form-label" for="vehReg">Registration no. <span class="text-danger">*</span></label>
-              <input
-                id="vehReg"
-                type="text"
-                class="form-control"
-                formControlName="registrationNo"
-                placeholder="e.g. MH12AB1234"
-                [class.is-invalid]="vehicleInvalid('registrationNo')"
-              />
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="vehMake">Make</label>
-              <input id="vehMake" type="text" class="form-control" formControlName="make" placeholder="e.g. Honda" />
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="vehModel">Model</label>
-              <input id="vehModel" type="text" class="form-control" formControlName="model" placeholder="e.g. City" />
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="vehColor">Color</label>
-              <input id="vehColor" type="text" class="form-control" formControlName="color" placeholder="e.g. white" />
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="vehYear">Year</label>
-              <input id="vehYear" type="number" class="form-control" formControlName="year" min="1980" max="2099" placeholder="e.g. 2020" />
-            </div>
+          <div class="modal-body">
+            <app-vehicle-make-model
+              registrationId="vehReg"
+              makeId="vehMake"
+              modelId="vehModel"
+              yearId="vehYear"
+              fuelId="vehFuel"
+              colorId="vehColor"
+              [showRegistration]="true"
+              [showYear]="true"
+              [showFuelType]="true"
+              [showColor]="true"
+              [compact]="true"
+              [registrationInvalid]="vehicleInvalid('registrationNo')"
+            />
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" (click)="closeAddVehicle()">Cancel</button>

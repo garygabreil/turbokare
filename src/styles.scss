@@ -602,3 +602,86 @@ input[type='password'],
   color: #64748b;
   margin-top: 0.15rem;
 }
+
+.vehicle-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.customer-form-section + .customer-form-section {
+  margin-top: 0.25rem;
+}
+
+.customer-vehicle-modal {
+  @media (min-width: 576px) {
+    max-width: 520px;
+  }
+}
+
+.customer-vehicle-modal .modal-header {
+  padding: 0.65rem 1rem;
+}
+
+.customer-vehicle-modal .modal-title {
+  font-size: 0.9375rem;
+}
+
+.customer-vehicle-modal .modal-body {
+  padding: 0.65rem 1rem 0.75rem;
+}
+
+.customer-vehicle-modal .modal-footer {
+  padding: 0.5rem 1rem 0.65rem;
+}
+
+.customer-vehicle-modal .cv-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.5rem;
+}
+
+.customer-vehicle-modal .cv-form-grid__full {
+  grid-column: 1 / -1;
+}
+
+.customer-vehicle-modal .cv-field-label,
+.customer-vehicle-modal .vehicle-fields-grid .cv-field-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.15rem;
+  color: #64748b;
+}
+
+.customer-vehicle-modal .cv-field-input,
+.customer-vehicle-modal input.form-control,
+.customer-vehicle-modal select.form-select {
+  text-transform: uppercase !important;
+  font-size: 0.8125rem !important;
+  height: 2rem !important;
+  min-height: 2rem !important;
+  padding: 0.2rem 0.5rem !important;
+  line-height: 1.4;
+}
+
+.customer-vehicle-modal .cv-field-input::placeholder,
+.customer-vehicle-modal input.form-control::placeholder {
+  text-transform: uppercase;
+}
+
+.customer-vehicle-modal .vehicle-section-label {
+  margin-top: 0.35rem;
+  margin-bottom: 0.15rem;
+  padding-top: 0.5rem;
+}
+
+.customer-vehicle-modal app-vehicle-make-model {
+  grid-column: 1 / -1;
+}

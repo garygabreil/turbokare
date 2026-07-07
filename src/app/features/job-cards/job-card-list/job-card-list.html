@@ -128,8 +128,16 @@
                 </td>
                 <td class="text-end text-nowrap">
                   <a
+                    [routerLink]="['/invoices/new']"
+                    [queryParams]="{ jobCardId: job.id }"
+                    class="btn btn-sm btn-outline-primary"
+                    title="Create invoice"
+                  >
+                    <i class="bi bi-receipt"></i>
+                  </a>
+                  <a
                     [routerLink]="['/job-cards', job.id, 'edit']"
-                    class="btn btn-sm btn-outline-secondary"
+                    class="btn btn-sm btn-outline-secondary ms-1"
                     title="Edit"
                   >
                     <i class="bi bi-pencil"></i>

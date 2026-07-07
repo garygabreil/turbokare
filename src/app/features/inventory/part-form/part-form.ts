@@ -27,7 +27,7 @@ export class PartForm {
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required]],
-    sku: ['', [Validators.required]],
+    sku: [''],
     category: [''],
     quantity: [0, [Validators.required, Validators.min(0)]],
     unitPrice: [0, [Validators.required, Validators.min(0)]],
@@ -57,7 +57,12 @@ export class PartForm {
       return;
     }
     this.submitting.set(true);
-    const payload = { ...this.form.getRawValue(), reorderLevel: 5 };
+    const raw = this.form.getRawValue();
+    const payload = {
+      ...raw,
+      sku: raw.sku.trim() || undefined,
+      reorderLevel: 5,
+    };
     try {
       if (this.isEdit && this.id) {
         await this.partService.update(this.id, payload);

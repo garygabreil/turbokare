@@ -5,6 +5,9 @@
       <i class="bi bi-arrow-left"></i>
     </a>
     <h1 class="h4 page-title mb-0">{{ isEdit ? 'Edit' : 'New' }} Invoice</h1>
+    @if (linkedJobCardId()) {
+      <span class="badge text-bg-light border">Linked to job card</span>
+    }
   </div>
 
   <form [formGroup]="form" (ngSubmit)="submit()" appFormKeyboard novalidate>
@@ -95,42 +98,45 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card mb-3">
       <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
-        <span class="fw-semibold">Line items</span>
-        <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItem()">
+        <span class="fw-semibold"><i class="bi bi-gear me-1"></i>Parts &amp; spares</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="addPartItem()">
           <i class="bi bi-plus-lg"></i>
         </button>
       </div>
       <div class="card-body pt-2 pb-2">
+        @if (partItems.length === 0) {
+          <p class="text-muted small mb-2">No parts added. Use + to add spares, or save with services only.</p>
+        }
         <div class="table-responsive">
           <table class="table table-sm align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th style="min-width: 160px">Description</th>
+                <th style="min-width: 160px">Part description</th>
                 <th style="width: 72px">Qty</th>
                 <th style="width: 110px">Rate (₹)</th>
                 <th class="text-end" style="width: 100px">Amount</th>
                 <th style="width: 36px"></th>
               </tr>
             </thead>
-            <tbody formArrayName="items">
-              @for (item of items.controls; track $index) {
+            <tbody formArrayName="partItems">
+              @for (item of partItems.controls; track $index) {
                 <tr [formGroupName]="$index">
                   <td>
                     <app-searchable-select
-                      [inputId]="'itemDesc' + $index"
-                      placeholder="Part / service…"
-                      [options]="descriptionOptions()"
-                      [value]="itemDescription($index)"
-                      [invalid]="itemInvalid($index, 'description') || !!lineStockError($index)"
+                      [inputId]="'partDesc' + $index"
+                      placeholder="Search part…"
+                      [options]="partDescriptionOptions()"
+                      [value]="partItemDescription($index)"
+                      [invalid]="partItemInvalid($index, 'description') || !!partLineStockError($index)"
                       [allowCustom]="true"
                       [uppercaseMenu]="true"
-                      (valueChange)="onDescriptionValue($index, $event)"
-                      (optionSelect)="onDescriptionSelect($index, $event)"
+                      (valueChange)="onPartDescriptionValue($index, $event)"
+                      (optionSelect)="onPartDescriptionSelect($index, $event)"
                     />
-                    @if (lineStockError($index)) {
-                      <div class="text-danger small mt-1 lh-sm">{{ lineStockError($index) }}</div>
+                    @if (partLineStockError($index)) {
+                      <div class="text-danger small mt-1 lh-sm">{{ partLineStockError($index) }}</div>
                     }
                   </td>
                   <td>
@@ -139,8 +145,8 @@
                       class="form-control form-control-sm"
                       formControlName="quantity"
                       placeholder="1"
-                      [class.is-invalid]="itemInvalid($index, 'quantity') || !!lineStockError($index)"
-                      (input)="onQuantityChange($index)"
+                      [class.is-invalid]="partItemInvalid($index, 'quantity') || !!partLineStockError($index)"
+                      (input)="onPartQuantityChange($index)"
                     />
                   </td>
                   <td>
@@ -152,19 +158,18 @@
                         class="form-control"
                         formControlName="unitPrice"
                         placeholder="0.00"
-                        [class.is-invalid]="itemInvalid($index, 'unitPrice')"
+                        [class.is-invalid]="partItemInvalid($index, 'unitPrice')"
                       />
                     </div>
                   </td>
                   <td class="text-end small">
-                    {{ (item.get('quantity')?.value || 0) * (item.get('unitPrice')?.value || 0) | inr }}
+                    {{ lineLineAmount(partItems, $index, 'part') | inr }}
                   </td>
                   <td class="text-end">
                     <button
                       type="button"
                       class="btn btn-sm btn-outline-danger py-0 px-1"
-                      (click)="removeItem($index)"
-                      [disabled]="items.length === 1"
+                      (click)="removePartItem($index)"
                       title="Remove"
                     >
                       <i class="bi bi-x-lg"></i>
@@ -175,8 +180,89 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
 
-        <div class="d-flex justify-content-end mt-2">
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold"><i class="bi bi-wrench me-1"></i>Services &amp; labor</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="addServiceItem()">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <div class="card-body pt-2 pb-2">
+        @if (serviceItems.length === 0) {
+          <p class="text-muted small mb-2">No service lines yet. Add labor, alignment, AC service, etc.</p>
+        }
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="min-width: 160px">Service description</th>
+                <th style="width: 72px">Qty</th>
+                <th style="width: 110px">Rate (₹)</th>
+                <th class="text-end" style="width: 100px">Amount</th>
+                <th style="width: 36px"></th>
+              </tr>
+            </thead>
+            <tbody formArrayName="serviceItems">
+              @for (item of serviceItems.controls; track $index) {
+                <tr [formGroupName]="$index">
+                  <td>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      formControlName="description"
+                      placeholder="Service description"
+                      [class.is-invalid]="serviceItemInvalid($index, 'description')"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      formControlName="quantity"
+                      placeholder="1"
+                      [class.is-invalid]="serviceItemInvalid($index, 'quantity')"
+                    />
+                  </td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text">₹</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        class="form-control"
+                        formControlName="unitPrice"
+                        placeholder="0.00"
+                        [class.is-invalid]="serviceItemInvalid($index, 'unitPrice')"
+                      />
+                    </div>
+                  </td>
+                  <td class="text-end small">
+                    {{ lineLineAmount(serviceItems, $index, 'service') | inr }}
+                  </td>
+                  <td class="text-end">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger py-0 px-1"
+                      (click)="removeServiceItem($index)"
+                      title="Remove"
+                    >
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body pt-2 pb-2">
+        <div class="d-flex justify-content-end">
           <div class="totals-box">
             <div class="d-flex justify-content-between py-0">
               <span class="text-muted">Subtotal</span>
@@ -198,6 +284,10 @@
                   <span>{{ igst | inr }}</span>
                 </div>
               }
+              <div class="d-flex justify-content-between py-0">
+                <span class="text-muted">Total tax</span>
+                <span>{{ taxTotal | inr }}</span>
+              </div>
             }
             <hr class="my-1" />
             <div class="d-flex justify-content-between fw-bold totals-grand">
