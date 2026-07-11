@@ -129,6 +129,15 @@
                   >
                     <i class="bi bi-printer"></i>
                   </a>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary ms-1"
+                    title="Download PDF"
+                    [disabled]="downloadingId() === invoice.id"
+                    (click)="downloadInvoice(invoice.id, invoice.invoiceNo)"
+                  >
+                    <i class="bi" [class.bi-download]="downloadingId() !== invoice.id" [class.bi-hourglass-split]="downloadingId() === invoice.id"></i>
+                  </button>
                   <a
                     [routerLink]="['/invoices', invoice.id, 'edit']"
                     class="btn btn-sm btn-outline-secondary ms-1"

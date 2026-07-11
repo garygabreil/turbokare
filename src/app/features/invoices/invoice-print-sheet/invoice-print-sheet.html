@@ -1,0 +1,317 @@
+@if (invoice; as inv) {
+  <div class="invoice-a4-sheet">
+    <h1 class="est-doc-title">{{ documentTitle(inv) }}</h1>
+
+    <div class="est-brand-row">
+      <div class="est-brand-left">{{ garage.name }}</div>
+      <div class="est-brand-right">
+        <img
+          class="est-brand-logo"
+          [src]="garage.logoUrl"
+          [alt]="garage.name + ' — ' + garage.tagline"
+        />
+      </div>
+    </div>
+
+    <div class="est-meta-row">
+      <span>{{ documentTitle(inv) }} No: <strong>{{ inv.invoiceNo }}</strong></span>
+      <span>
+        Date : <strong>{{ inv.createdAt ? (inv.createdAt | date: 'dd-MMM-yy') : '—' }}</strong>
+        @if (jobCardRef()) {
+          · <span class="est-meta-sub">{{ jobCardRef() }}</span>
+        }
+      </span>
+    </div>
+
+    <hr class="est-rule" />
+
+    <section class="est-info-grid">
+      <div class="est-info-col">
+        <h2>Bill From</h2>
+        <p class="est-info-name">{{ garage.name }}</p>
+        <p>{{ garage.addressLine1 }}</p>
+        <p>{{ garage.addressLine2 }}</p>
+        <p>GST: <strong>{{ garage.gstin }}</strong></p>
+      </div>
+
+      <div class="est-info-col est-info-col--vehicle">
+        <h2>Vehicle Details</h2>
+        <div class="est-vehicle-grid">
+          <span class="est-vehicle-label">Reg No</span>
+          <span class="est-vehicle-value">{{ vehicleRegNo() }}</span>
+          <span class="est-vehicle-label">Make</span>
+          <span class="est-vehicle-value">{{ vehicleMakeLabel() }}</span>
+          <span class="est-vehicle-label">Model</span>
+          <span class="est-vehicle-value">{{ vehicleModelOnlyLabel() }}</span>
+          <span class="est-vehicle-label">Year</span>
+          <span class="est-vehicle-value">{{ vehicleYearLabel() }}</span>
+          <span class="est-vehicle-label">Color</span>
+          <span class="est-vehicle-value">{{ vehicleColorLabel() }}</span>
+          <span class="est-vehicle-label">Odometer</span>
+          <span class="est-vehicle-value">{{ odometerLabel() }}</span>
+          <span class="est-vehicle-label">Fuel Type</span>
+          <span class="est-vehicle-value">{{ fuelTypeLabel() }}</span>
+          <span class="est-vehicle-label">Next Service</span>
+          <span class="est-vehicle-value">{{ nextServiceLabel() }}</span>
+        </div>
+      </div>
+
+      <div class="est-info-col">
+        <h2>Bill To</h2>
+        <p class="est-info-name">{{ inv.customerName || '—' }}</p>
+        <p>{{ billToLocation() }}</p>
+        @if (inv.customerGstin) {
+          <p>GST: <strong>{{ inv.customerGstin }}</strong></p>
+        }
+      </div>
+    </section>
+
+    <div class="est-contact-bar">
+      <span><strong>Customer Mobile</strong> {{ customer?.phone || '—' }}</span>
+      <span class="est-contact-divider"></span>
+      <span><strong>Email</strong> {{ customer?.email || '—' }}</span>
+      <span class="est-contact-divider"></span>
+      <span><strong>Service Advisor</strong> {{ serviceAdvisor() }}</span>
+      <span class="est-contact-divider"></span>
+      <span><strong>Mobile</strong> {{ advisorPhone() }}</span>
+      <span class="est-contact-divider"></span>
+      <span><strong>Billing</strong> {{ billingLabel(inv) }}</span>
+    </div>
+
+    @let spareLines = printLines(inv, partItems(inv));
+    @let serviceLines = printLines(inv, serviceItems(inv));
+    @let spareTotals = sectionTotals(spareLines);
+    @let serviceTotals = sectionTotals(serviceLines);
+
+    <div class="est-section-bar">SPARES</div>
+    <table class="est-items-table">
+      <thead>
+        <tr>
+          <th>S.No</th>
+          <th>Description</th>
+          <th>HSN</th>
+          <th class="text-end">Rate</th>
+          <th class="text-center">Qty</th>
+          @if (showCgstSgst(inv)) {
+            <th class="text-end">CGST%</th>
+            <th class="text-end">SGST%</th>
+            <th class="text-end">CGST</th>
+            <th class="text-end">SGST</th>
+          }
+          @if (showIgst(inv)) {
+            <th class="text-end">IGST%</th>
+            <th class="text-end">IGST</th>
+          }
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of spareLines; track $index) {
+          <tr>
+            <td>{{ $index + 1 }}</td>
+            <td>{{ line.description }}</td>
+            <td>{{ line.hsn }}</td>
+            <td class="text-end">{{ line.rate | number: '1.2-2' }}</td>
+            <td class="text-center">{{ line.quantity }}</td>
+            @if (showCgstSgst(inv)) {
+              <td class="text-end">{{ line.cgstPct | number: '1.0-2' }}</td>
+              <td class="text-end">{{ line.sgstPct | number: '1.0-2' }}</td>
+              <td class="text-end">{{ line.cgst | number: '1.2-2' }}</td>
+              <td class="text-end">{{ line.sgst | number: '1.2-2' }}</td>
+            }
+            @if (showIgst(inv)) {
+              <td class="text-end">{{ line.igstPct | number: '1.0-2' }}</td>
+              <td class="text-end">{{ line.igst | number: '1.2-2' }}</td>
+            }
+            <td class="text-end">{{ line.amount | number: '1.2-2' }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="tableColCount(inv)" class="text-center text-muted">No spares</td>
+          </tr>
+        }
+        @if (spareLines.length) {
+          <tr class="est-total-row">
+            <td colspan="3"></td>
+            <td colspan="2" class="text-end"><strong>Total</strong></td>
+            @if (showCgstSgst(inv)) {
+              <td colspan="2"></td>
+              <td class="text-end"><strong>{{ spareTotals.cgst | number: '1.2-2' }}</strong></td>
+              <td class="text-end"><strong>{{ spareTotals.sgst | number: '1.2-2' }}</strong></td>
+            }
+            @if (showIgst(inv)) {
+              <td></td>
+              <td class="text-end"><strong>{{ spareTotals.igst | number: '1.2-2' }}</strong></td>
+            }
+            <td class="text-end"><strong>{{ spareTotals.amount | number: '1.2-2' }}</strong></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <div class="est-section-bar">SERVICE</div>
+    <table class="est-items-table">
+      <thead>
+        <tr>
+          <th>S.No</th>
+          <th>Description</th>
+          <th>HSN</th>
+          <th class="text-end">Rate</th>
+          <th class="text-center">Qty</th>
+          @if (showCgstSgst(inv)) {
+            <th class="text-end">CGST%</th>
+            <th class="text-end">SGST%</th>
+            <th class="text-end">CGST</th>
+            <th class="text-end">SGST</th>
+          }
+          @if (showIgst(inv)) {
+            <th class="text-end">IGST%</th>
+            <th class="text-end">IGST</th>
+          }
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of serviceLines; track $index) {
+          <tr>
+            <td>{{ $index + 1 }}</td>
+            <td>{{ line.description }}</td>
+            <td>{{ line.hsn }}</td>
+            <td class="text-end">{{ line.rate | number: '1.2-2' }}</td>
+            <td class="text-center">{{ line.quantity }}</td>
+            @if (showCgstSgst(inv)) {
+              <td class="text-end">{{ line.cgstPct | number: '1.0-2' }}</td>
+              <td class="text-end">{{ line.sgstPct | number: '1.0-2' }}</td>
+              <td class="text-end">{{ line.cgst | number: '1.2-2' }}</td>
+              <td class="text-end">{{ line.sgst | number: '1.2-2' }}</td>
+            }
+            @if (showIgst(inv)) {
+              <td class="text-end">{{ line.igstPct | number: '1.0-2' }}</td>
+              <td class="text-end">{{ line.igst | number: '1.2-2' }}</td>
+            }
+            <td class="text-end">{{ line.amount | number: '1.2-2' }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="tableColCount(inv)" class="text-center text-muted">No services</td>
+          </tr>
+        }
+        @if (serviceLines.length) {
+          <tr class="est-total-row">
+            <td colspan="3"></td>
+            <td colspan="2" class="text-end"><strong>Total</strong></td>
+            @if (showCgstSgst(inv)) {
+              <td colspan="2"></td>
+              <td class="text-end"><strong>{{ serviceTotals.cgst | number: '1.2-2' }}</strong></td>
+              <td class="text-end"><strong>{{ serviceTotals.sgst | number: '1.2-2' }}</strong></td>
+            }
+            @if (showIgst(inv)) {
+              <td></td>
+              <td class="text-end"><strong>{{ serviceTotals.igst | number: '1.2-2' }}</strong></td>
+            }
+            <td class="text-end"><strong>{{ serviceTotals.amount | number: '1.2-2' }}</strong></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <div class="est-summary-wrap">
+      <table class="est-summary-table">
+        <tbody>
+          <tr>
+            <td>Spare Total</td>
+            <td class="text-end">{{ spareTotals.amount | number: '1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td>Service Total</td>
+            <td class="text-end">{{ serviceTotals.amount | number: '1.2-2' }}</td>
+          </tr>
+          @if (inv.billingType === 'gst') {
+            <tr>
+              <td>Subtotal (excl. tax)</td>
+              <td class="text-end">{{ inv.subtotal | number: '1.2-2' }}</td>
+            </tr>
+            @if (inv.gstType === 'cgst_sgst') {
+              <tr>
+                <td>CGST</td>
+                <td class="text-end">{{ inv.cgst | number: '1.2-2' }}</td>
+              </tr>
+              <tr>
+                <td>SGST</td>
+                <td class="text-end">{{ inv.sgst | number: '1.2-2' }}</td>
+              </tr>
+            } @else {
+              <tr>
+                <td>IGST</td>
+                <td class="text-end">{{ inv.igst | number: '1.2-2' }}</td>
+              </tr>
+            }
+            <tr>
+              <td>Total Tax</td>
+              <td class="text-end">{{ inv.taxTotal | number: '1.2-2' }}</td>
+            </tr>
+          }
+          <tr class="est-summary-net">
+            <td>Net Amount</td>
+            <td class="text-end">{{ inv.total | number: '1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="est-section-bar">COMPLAINTS</div>
+    <div class="est-complaints">
+      @if (complaints().length) {
+        <ul>
+          @for (item of complaints(); track $index) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      } @else {
+        <p class="text-muted mb-0">—</p>
+      }
+    </div>
+
+    <div class="est-section-bar">RECOMMENDATIONS</div>
+    <div class="est-complaints est-recommendations">
+      @if (recommendations().length) {
+        <ul>
+          @for (rec of recommendations(); track rec.id) {
+            <li>{{ recommendationLine(rec) }}</li>
+          }
+        </ul>
+      } @else {
+        <p class="text-muted mb-0">—</p>
+      }
+    </div>
+
+    @if (jobCardNotes()) {
+      <div class="est-section-bar">NOTES</div>
+      <div class="est-complaints">
+        <p class="mb-0">{{ jobCardNotes() }}</p>
+      </div>
+    }
+
+    <div class="est-footer-row">
+      <div class="est-note-box">
+        <p>{{ garage.disclaimer }}</p>
+      </div>
+      <div class="est-amount-box">
+        <span class="est-amount-label">{{ documentTitle(inv) === 'ESTIMATE' ? 'Estimated Amount' : 'Invoice Amount' }}</span>
+        <strong class="est-amount-value">{{ inv.total | inr }}</strong>
+      </div>
+    </div>
+
+    <div class="est-sig-row">
+      <div class="est-sig-box">
+        <span>Approximate Delivery Date</span>
+      </div>
+      <div class="est-sig-box">
+        <span>Customer Signature</span>
+      </div>
+      <div class="est-sig-box">
+        <span>Authorised Signatory For {{ garage.name }}</span>
+      </div>
+    </div>
+  </div>
+}

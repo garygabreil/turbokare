@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { InrCurrencyPipe } from '../../../shared/pipes/inr-currency.pipe';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { InvoicePdfDownloadService } from '../../../core/services/invoice-pdf-download.service';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { InvoiceStatus } from '../../../core/models';
@@ -34,9 +35,11 @@ import {
 export class InvoiceList {
   private readonly invoiceService = inject(InvoiceService);
   private readonly notify = inject(NotificationService);
+  private readonly pdfDownload = inject(InvoicePdfDownloadService);
 
   private readonly invoices = loadSignal(this.invoiceService.list());
   readonly loading = isDataLoading(this.invoices);
+  readonly downloadingId = signal<string | null>(null);
   readonly dayMode = signal<DayFilterMode>('today');
   readonly viewDate = signal(todayDateInput());
   readonly search = signal('');
@@ -121,6 +124,21 @@ export class InvoiceList {
       this.notify.success('Invoice status updated.');
     } catch (err) {
       this.notify.error((err as Error).message);
+    }
+  }
+
+  async downloadInvoice(id: string | undefined, invoiceNo: string): Promise<void> {
+    if (!id || this.downloadingId()) {
+      return;
+    }
+    this.downloadingId.set(id);
+    try {
+      await this.pdfDownload.downloadById(id);
+      this.notify.success(`Downloaded ${invoiceNo} as PDF.`);
+    } catch {
+      this.notify.error('Could not download PDF.');
+    } finally {
+      this.downloadingId.set(null);
     }
   }
 
