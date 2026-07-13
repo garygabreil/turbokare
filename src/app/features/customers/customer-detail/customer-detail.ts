@@ -24,6 +24,7 @@ import {
 } from '../../../core/utils/service-reminder';
 import { formatReminderSummary } from '../../../core/utils/service-reminder-sync';
 import { resolveVehicleMakeModel } from '../../../core/constants/indian-vehicles';
+import { normalizeGstin, optionalGstinValidator } from '../../../core/utils/gstin.util';
 import { vehiclesForCustomer } from '../../../core/utils/customer-vehicles';
 
 export interface ServiceHistoryRow {
@@ -106,6 +107,7 @@ export class CustomerDetail implements OnInit {
     phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
     email: ['', [Validators.email]],
     address: [''],
+    gstin: ['', [optionalGstinValidator]],
   });
 
   readonly followUpForm = this.fb.nonNullable.group({
@@ -303,6 +305,7 @@ export class CustomerDetail implements OnInit {
           phone: customer.phone,
           email: customer.email ?? '',
           address: customer.address ?? '',
+          gstin: customer.gstin ?? '',
         });
       }
     } catch {
@@ -377,6 +380,13 @@ export class CustomerDetail implements OnInit {
     this.profileForm.get('phone')?.setValue(digits);
   }
 
+  onGstinInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const normalized = normalizeGstin(input.value);
+    input.value = normalized;
+    this.profileForm.get('gstin')?.setValue(normalized);
+  }
+
   startEdit(): void {
     this.editing.set(true);
   }
@@ -389,6 +399,7 @@ export class CustomerDetail implements OnInit {
         phone: customer.phone,
         email: customer.email ?? '',
         address: customer.address ?? '',
+        gstin: customer.gstin ?? '',
       });
     }
     this.editing.set(false);
@@ -407,6 +418,7 @@ export class CustomerDetail implements OnInit {
         phone: value.phone,
         email: value.email || undefined,
         address: value.address || undefined,
+        gstin: normalizeGstin(value.gstin) || undefined,
       });
       this.customer.update((c) =>
         c
@@ -416,6 +428,7 @@ export class CustomerDetail implements OnInit {
               phone: value.phone,
               email: value.email || undefined,
               address: value.address || undefined,
+              gstin: normalizeGstin(value.gstin) || undefined,
             }
           : c,
       );

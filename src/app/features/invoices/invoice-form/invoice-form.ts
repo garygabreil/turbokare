@@ -22,6 +22,7 @@ import {
   roundMoney,
 } from '../../../core/utils/invoice-math';
 import { formatInr } from '../../../shared/pipes/inr-currency.pipe';
+import { normalizeGstin, optionalGstinValidator } from '../../../core/utils/gstin.util';
 
 @Component({
   selector: 'app-invoice-form',
@@ -117,6 +118,20 @@ export class InvoiceForm {
     const control = this.form.get('customerId');
     control?.setValue(id);
     control?.markAsDirty();
+
+    const customer = orEmpty(this.customers()).find((c) => c.id === id);
+    const gstinControl = this.form.get('customerGstin');
+    if (customer?.gstin && !normalizeGstin(gstinControl?.value)) {
+      gstinControl?.setValue(normalizeGstin(customer.gstin));
+    }
+  }
+
+  onGstinInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const normalized = normalizeGstin(input.value);
+    input.value = normalized;
+    this.form.get('customerGstin')?.setValue(normalized);
+    this.form.get('customerGstin')?.markAsDirty();
   }
 
   onPartDescriptionValue(index: number, text: string): void {
@@ -287,10 +302,7 @@ export class InvoiceForm {
     billingType: ['gst' as BillingType, [Validators.required]],
     gstType: ['cgst_sgst' as GstType],
     gstPercent: [18, [Validators.min(0), Validators.max(100)]],
-    customerGstin: [
-      '',
-      [Validators.pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)],
-    ],
+    customerGstin: ['', [optionalGstinValidator]],
     status: ['unpaid' as 'unpaid' | 'partial' | 'paid', [Validators.required]],
     partItems: this.fb.array([] as ReturnType<typeof this.createPartItem>[]),
     serviceItems: this.fb.array([] as ReturnType<typeof this.createServiceItem>[]),
@@ -599,7 +611,7 @@ export class InvoiceForm {
       billingType: value.billingType,
       gstType: this.isGst ? value.gstType : '',
       gstPercent: this.effectiveGstPercent,
-      customerGstin: value.customerGstin ?? '',
+      customerGstin: this.isGst ? normalizeGstin(value.customerGstin) : '',
       status: value.status,
       subtotal: amounts.subtotal,
       cgst: amounts.cgst,

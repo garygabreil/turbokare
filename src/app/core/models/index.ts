@@ -10,6 +10,7 @@ export interface Customer {
   phone: string;
   email?: string;
   address?: string;
+  gstin?: string;
   createdAt?: number;
 }
 

@@ -81,14 +81,16 @@
             </select>
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label" for="customerGstin">Customer GSTIN</label>
+            <label class="form-label" for="customerGstin">GSTIN</label>
             <input
               id="customerGstin"
               type="text"
-              class="form-control form-control-sm text-uppercase"
+              class="form-control form-control-sm text-none"
               formControlName="customerGstin"
+              maxlength="15"
               [class.is-invalid]="invalid('customerGstin')"
               placeholder="15-character GSTIN (optional)"
+              (input)="onGstinInput($event)"
             />
             @if (invalid('customerGstin')) {
               <div class="invalid-feedback">Invalid GSTIN.</div>

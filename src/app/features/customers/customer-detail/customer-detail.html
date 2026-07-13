@@ -163,6 +163,22 @@
                   <label class="form-label" for="address">Address</label>
                   <textarea id="address" class="form-control form-control-sm" rows="2" formControlName="address" placeholder="Street, city, pin code"></textarea>
                 </div>
+                <div class="col-12">
+                  <label class="form-label" for="gstin">GSTIN</label>
+                  <input
+                    id="gstin"
+                    type="text"
+                    class="form-control form-control-sm text-none"
+                    formControlName="gstin"
+                    maxlength="15"
+                    placeholder="15-character GSTIN (optional)"
+                    (input)="onGstinInput($event)"
+                    [class.is-invalid]="profileInvalid('gstin')"
+                  />
+                  @if (profileInvalid('gstin')) {
+                    <div class="invalid-feedback">Invalid GSTIN.</div>
+                  }
+                </div>
                 <div class="col-12 d-flex gap-2">
                   <button type="submit" class="btn btn-primary btn-sm" [disabled]="savingProfile()">
                     @if (savingProfile()) {
@@ -181,6 +197,8 @@
                 <dd>{{ cust.email || '—' }}</dd>
                 <dt>Address</dt>
                 <dd>{{ cust.address || '—' }}</dd>
+                <dt>GSTIN</dt>
+                <dd class="text-none">{{ cust.gstin || '—' }}</dd>
                 <dt>Customer since</dt>
                 <dd>
                   @if (cust.createdAt) {
