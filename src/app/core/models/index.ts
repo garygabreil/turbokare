@@ -118,6 +118,7 @@ export interface InvoiceItem {
 export type InvoiceStatus = 'unpaid' | 'paid' | 'partial';
 export type BillingType = 'gst' | 'non-gst';
 export type GstType = 'cgst_sgst' | 'igst';
+export type DiscountType = 'none' | 'fixed' | 'percent';
 
 export interface Invoice {
   id?: string;
@@ -125,6 +126,7 @@ export interface Invoice {
   customerId: string;
   customerName?: string;
   jobCardId?: string;
+  assignedMechanic?: string;
   items: InvoiceItem[];
   billingType: BillingType;
   gstType?: GstType;
@@ -136,6 +138,9 @@ export interface Invoice {
   sgst: number;
   igst: number;
   taxTotal: number;
+  discountType?: DiscountType;
+  discountValue?: number;
+  discountTotal?: number;
   total: number;
   createdAt?: number;
 }

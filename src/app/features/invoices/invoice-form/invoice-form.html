@@ -117,8 +117,8 @@
               <tr>
                 <th style="min-width: 160px">Part description</th>
                 <th style="width: 72px">Qty</th>
-                <th style="width: 110px">Rate (₹)</th>
-                <th class="text-end" style="width: 100px">Amount</th>
+                <th class="col-money">Rate (₹)</th>
+                <th class="text-end col-money">Amount (incl. tax)</th>
                 <th style="width: 36px"></th>
               </tr>
             </thead>
@@ -151,21 +151,36 @@
                       (input)="onPartQuantityChange($index)"
                     />
                   </td>
-                  <td>
-                    <div class="input-group input-group-sm">
+                  <td class="col-money">
+                    <div class="input-group input-group-sm money-input">
                       <span class="input-group-text">₹</span>
                       <input
                         type="number"
                         step="0.01"
                         class="form-control"
-                        formControlName="unitPrice"
                         placeholder="0.00"
+                        [value]="unitPriceFieldValue(partItems, $index, 'part')"
                         [class.is-invalid]="partItemInvalid($index, 'unitPrice')"
+                        (focus)="onUnitPriceFocus(partItems, $index, 'part')"
+                        (input)="onUnitPriceInput('part', $index, $any($event.target).value)"
+                        (blur)="onUnitPriceBlur(partItems, $index, 'part', $event)"
                       />
                     </div>
                   </td>
-                  <td class="text-end small">
-                    {{ lineLineAmount(partItems, $index, 'part') | inr }}
+                  <td class="text-end col-money">
+                    <div class="input-group input-group-sm money-input">
+                      <span class="input-group-text">₹</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        class="form-control"
+                        [value]="amountFieldValue(partItems, $index, 'part')"
+                        placeholder="0.00"
+                        (focus)="onAmountFocus(partItems, $index, 'part')"
+                        (input)="onAmountInput('part', $index, $any($event.target).value)"
+                        (blur)="onAmountBlur(partItems, $index, 'part', $event)"
+                      />
+                    </div>
                   </td>
                   <td class="text-end">
                     <button
@@ -202,8 +217,8 @@
               <tr>
                 <th style="min-width: 160px">Service description</th>
                 <th style="width: 72px">Qty</th>
-                <th style="width: 110px">Rate (₹)</th>
-                <th class="text-end" style="width: 100px">Amount</th>
+                <th class="col-money">Rate (₹)</th>
+                <th class="text-end col-money">Amount (incl. tax)</th>
                 <th style="width: 36px"></th>
               </tr>
             </thead>
@@ -228,21 +243,36 @@
                       [class.is-invalid]="serviceItemInvalid($index, 'quantity')"
                     />
                   </td>
-                  <td>
-                    <div class="input-group input-group-sm">
+                  <td class="col-money">
+                    <div class="input-group input-group-sm money-input">
                       <span class="input-group-text">₹</span>
                       <input
                         type="number"
                         step="0.01"
                         class="form-control"
-                        formControlName="unitPrice"
                         placeholder="0.00"
+                        [value]="unitPriceFieldValue(serviceItems, $index, 'service')"
                         [class.is-invalid]="serviceItemInvalid($index, 'unitPrice')"
+                        (focus)="onUnitPriceFocus(serviceItems, $index, 'service')"
+                        (input)="onUnitPriceInput('service', $index, $any($event.target).value)"
+                        (blur)="onUnitPriceBlur(serviceItems, $index, 'service', $event)"
                       />
                     </div>
                   </td>
-                  <td class="text-end small">
-                    {{ lineLineAmount(serviceItems, $index, 'service') | inr }}
+                  <td class="text-end col-money">
+                    <div class="input-group input-group-sm money-input">
+                      <span class="input-group-text">₹</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        class="form-control"
+                        [value]="amountFieldValue(serviceItems, $index, 'service')"
+                        placeholder="0.00"
+                        (focus)="onAmountFocus(serviceItems, $index, 'service')"
+                        (input)="onAmountInput('service', $index, $any($event.target).value)"
+                        (blur)="onAmountBlur(serviceItems, $index, 'service', $event)"
+                      />
+                    </div>
                   </td>
                   <td class="text-end">
                     <button
@@ -289,6 +319,30 @@
               <div class="d-flex justify-content-between py-0">
                 <span class="text-muted">Total tax</span>
                 <span>{{ taxTotal | inr }}</span>
+              </div>
+            }
+            <div class="d-flex align-items-center gap-2 py-1">
+              <select class="form-select form-select-sm" formControlName="discountType" style="width: auto; min-width: 7rem">
+                <option value="none">No discount</option>
+                <option value="fixed">Fixed ₹</option>
+                <option value="percent">Percent %</option>
+              </select>
+              @if (showDiscountValue) {
+                <input
+                  type="number"
+                  class="form-control form-control-sm"
+                  formControlName="discountValue"
+                  min="0"
+                  step="0.01"
+                  style="width: 5.5rem"
+                  placeholder="0"
+                />
+              }
+            </div>
+            @if (discountTotal > 0) {
+              <div class="d-flex justify-content-between py-0 text-success">
+                <span>Discount</span>
+                <span>−{{ discountTotal | inr }}</span>
               </div>
             }
             <hr class="my-1" />

@@ -10,7 +10,7 @@ import { PartService } from '../../../core/services/part.service';
 import { StockMovementService } from '../../../core/services/stock-movement.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { BillingType, GstType, InvoiceItem, Part } from '../../../core/models';
+import { BillingType, DiscountType, GstType, InvoiceItem, Part } from '../../../core/models';
 import { SearchableSelect, SelectOption } from '../../../shared/searchable-select/searchable-select';
 import { FormKeyboardDirective } from '../../../shared/directives/form-keyboard.directive';
 import { PageLoading } from '../../../shared/page-loading/page-loading';
@@ -20,6 +20,7 @@ import {
   calculateLineAmounts,
   normalizeInvoiceItem,
   roundMoney,
+  unitPriceFromLineAmount,
 } from '../../../core/utils/invoice-math';
 import { formatInr } from '../../../shared/pipes/inr-currency.pipe';
 import { normalizeGstin, optionalGstinValidator } from '../../../core/utils/gstin.util';
@@ -107,8 +108,12 @@ export class InvoiceForm {
       (this.isEdit && this.recordLoading()),
   );
   private readonly originalItems = signal<InvoiceItem[]>([]);
+  private readonly storedAssignedMechanic = signal('');
   readonly linkedJobCardId = signal<string | null>(null);
   readonly lineStockErrors = signal<Record<string, string>>({});
+  /** While set, amount input shows draft text instead of recomputed line total. */
+  private readonly amountEditKey = signal<string | null>(null);
+  private readonly amountEditDraft = signal('');
 
   get selectedCustomerId(): string {
     return this.form.get('customerId')?.value ?? '';
@@ -304,6 +309,8 @@ export class InvoiceForm {
     gstPercent: [18, [Validators.min(0), Validators.max(100)]],
     customerGstin: ['', [optionalGstinValidator]],
     status: ['unpaid' as 'unpaid' | 'partial' | 'paid', [Validators.required]],
+    discountType: ['none' as DiscountType],
+    discountValue: [0, [Validators.min(0)]],
     partItems: this.fb.array([] as ReturnType<typeof this.createPartItem>[]),
     serviceItems: this.fb.array([] as ReturnType<typeof this.createServiceItem>[]),
   });
@@ -314,6 +321,7 @@ export class InvoiceForm {
         .then((invoice) => {
           if (invoice) {
             this.linkedJobCardId.set(invoice.jobCardId ?? null);
+            this.storedAssignedMechanic.set(invoice.assignedMechanic ?? '');
             const allItems = invoice.items ?? [];
             const parts = allItems.filter((i) => i.itemType !== 'service');
             const services = allItems.filter((i) => i.itemType === 'service');
@@ -330,6 +338,8 @@ export class InvoiceForm {
               gstPercent: invoice.gstPercent ?? 0,
               customerGstin: invoice.customerGstin ?? '',
               status: invoice.status,
+              discountType: invoice.discountType ?? 'none',
+              discountValue: invoice.discountValue ?? 0,
             });
           }
         })
@@ -473,6 +483,145 @@ export class InvoiceForm {
     return line.amount;
   }
 
+  /** Always show paise, e.g. 34000 → "34000.00". */
+  formatMoney(value: number | string | null | undefined): string {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) {
+      return '0.00';
+    }
+    return roundMoney(n).toFixed(2);
+  }
+
+  private amountKey(itemType: 'part' | 'service', index: number): string {
+    return `amount:${itemType}:${index}`;
+  }
+
+  private rateKey(itemType: 'part' | 'service', index: number): string {
+    return `rate:${itemType}:${index}`;
+  }
+
+  amountFieldValue(array: FormArray, index: number, itemType: 'part' | 'service'): string {
+    if (this.amountEditKey() === this.amountKey(itemType, index)) {
+      return this.amountEditDraft();
+    }
+    return this.formatMoney(this.lineLineAmount(array, index, itemType));
+  }
+
+  unitPriceFieldValue(array: FormArray, index: number, itemType: 'part' | 'service'): string {
+    if (this.amountEditKey() === this.rateKey(itemType, index)) {
+      return this.amountEditDraft();
+    }
+    return this.formatMoney(array.at(index).get('unitPrice')?.value);
+  }
+
+  onAmountFocus(array: FormArray, index: number, itemType: 'part' | 'service'): void {
+    this.amountEditKey.set(this.amountKey(itemType, index));
+    this.amountEditDraft.set(this.formatMoney(this.lineLineAmount(array, index, itemType)));
+  }
+
+  onAmountInput(itemType: 'part' | 'service', index: number, rawAmount: string): void {
+    if (this.amountEditKey() !== this.amountKey(itemType, index)) {
+      this.amountEditKey.set(this.amountKey(itemType, index));
+    }
+    this.amountEditDraft.set(rawAmount);
+  }
+
+  onAmountBlur(
+    array: FormArray,
+    index: number,
+    itemType: 'part' | 'service',
+    event?: FocusEvent,
+  ): void {
+    const targetValue = (event?.target as HTMLInputElement | null)?.value;
+    const raw =
+      targetValue ??
+      (this.amountEditKey() === this.amountKey(itemType, index)
+        ? this.amountEditDraft()
+        : this.formatMoney(this.lineLineAmount(array, index, itemType)));
+    this.commitLineAmount(array, index, itemType, raw);
+    this.amountEditKey.set(null);
+    this.amountEditDraft.set('');
+  }
+
+  onUnitPriceFocus(array: FormArray, index: number, itemType: 'part' | 'service'): void {
+    this.amountEditKey.set(this.rateKey(itemType, index));
+    this.amountEditDraft.set(this.formatMoney(array.at(index).get('unitPrice')?.value));
+  }
+
+  onUnitPriceInput(itemType: 'part' | 'service', index: number, raw: string): void {
+    if (this.amountEditKey() !== this.rateKey(itemType, index)) {
+      this.amountEditKey.set(this.rateKey(itemType, index));
+    }
+    this.amountEditDraft.set(raw);
+  }
+
+  onUnitPriceBlur(
+    array: FormArray,
+    index: number,
+    itemType: 'part' | 'service',
+    event?: FocusEvent,
+  ): void {
+    const targetValue = (event?.target as HTMLInputElement | null)?.value;
+    const raw =
+      targetValue ??
+      (this.amountEditKey() === this.rateKey(itemType, index)
+        ? this.amountEditDraft()
+        : this.formatMoney(array.at(index).get('unitPrice')?.value));
+    const n = roundMoney(Number(raw) || 0);
+    if (Number.isFinite(n) && n >= 0) {
+      const control = array.at(index).get('unitPrice');
+      control?.setValue(n);
+      control?.markAsDirty();
+    }
+    this.amountEditKey.set(null);
+    this.amountEditDraft.set('');
+  }
+
+  private commitLineAmount(
+    array: FormArray,
+    index: number,
+    itemType: 'part' | 'service',
+    rawAmount: string,
+  ): void {
+    const amount = Number(rawAmount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      return;
+    }
+    const row = array.at(index);
+    const qty = Number(row.get('quantity')?.value) || 0;
+    const unitPrice = unitPriceFromLineAmount(
+      amount,
+      qty,
+      this.form.get('billingType')?.value ?? 'non-gst',
+      this.form.get('gstType')?.value ?? undefined,
+      this.effectiveGstPercent,
+      itemType,
+    );
+    row.get('unitPrice')?.setValue(roundMoney(unitPrice), { emitEvent: false });
+    row.get('unitPrice')?.markAsDirty();
+  }
+
+  private currentDiscount() {
+    const value = this.form.getRawValue();
+    return {
+      type: value.discountType,
+      value: Number(value.discountValue) || 0,
+    };
+  }
+
+  private async resolveAssignedMechanic(): Promise<string> {
+    const jobCardId = this.linkedJobCardId();
+    if (!jobCardId) {
+      return '';
+    }
+    try {
+      const job = await firstValueFrom(this.jobCardService.get(jobCardId));
+      return job?.assignedTo?.trim() ?? '';
+    } catch {
+      return '';
+    }
+  }
+
   private buildDraftItems(): InvoiceItem[] {
     const value = this.form.getRawValue();
     const parts: InvoiceItem[] = value.partItems
@@ -501,6 +650,7 @@ export class InvoiceForm {
       this.form.get('billingType')?.value ?? 'non-gst',
       this.form.get('gstType')?.value ?? undefined,
       this.effectiveGstPercent,
+      this.currentDiscount(),
     );
   }
 
@@ -528,8 +678,16 @@ export class InvoiceForm {
     return this.invoiceAmounts().taxTotal;
   }
 
+  get discountTotal(): number {
+    return this.invoiceAmounts().discountTotal;
+  }
+
   get total(): number {
     return this.invoiceAmounts().total;
+  }
+
+  get showDiscountValue(): boolean {
+    return this.form.get('discountType')?.value !== 'none';
   }
 
   private pruneEmptyLineItems(): void {
@@ -593,6 +751,10 @@ export class InvoiceForm {
       value.billingType,
       this.isGst ? value.gstType : undefined,
       this.effectiveGstPercent,
+      {
+        type: value.discountType,
+        value: Number(value.discountValue) || 0,
+      },
     );
     const stockError = this.isEdit
       ? this.validateStockForEdit(this.originalItems(), items)
@@ -602,11 +764,14 @@ export class InvoiceForm {
       this.submitting.set(false);
       return;
     }
+    const assignedMechanic =
+      (await this.resolveAssignedMechanic()) || this.storedAssignedMechanic().trim() || undefined;
     const payload = {
       invoiceNo: value.invoiceNo,
       customerId: value.customerId,
       customerName: customer?.name ?? '',
       jobCardId: this.linkedJobCardId() ?? undefined,
+      assignedMechanic,
       items,
       billingType: value.billingType,
       gstType: this.isGst ? value.gstType : '',
@@ -618,6 +783,9 @@ export class InvoiceForm {
       sgst: amounts.sgst,
       igst: amounts.igst,
       taxTotal: amounts.taxTotal,
+      discountType: value.discountType,
+      discountValue: Number(value.discountValue) || 0,
+      discountTotal: amounts.discountTotal,
       total: amounts.total,
     };
     try {

@@ -71,9 +71,9 @@
       <span class="est-contact-divider"></span>
       <span><strong>Email</strong> {{ customer?.email || '—' }}</span>
       <span class="est-contact-divider"></span>
-      <span><strong>Service Advisor</strong> {{ serviceAdvisor() }}</span>
+      <span><strong>Assigned Mechanic</strong> {{ assignedMechanic() }}</span>
       <span class="est-contact-divider"></span>
-      <span><strong>Mobile</strong> {{ advisorPhone() }}</span>
+      <span><strong>Workshop Mobile</strong> {{ advisorPhone() }}</span>
       <span class="est-contact-divider"></span>
       <span><strong>Billing</strong> {{ billingLabel(inv) }}</span>
     </div>
@@ -249,6 +249,12 @@
             <tr>
               <td>Total Tax</td>
               <td class="text-end">{{ inv.taxTotal | number: '1.2-2' }}</td>
+            </tr>
+          }
+          @if (inv.discountTotal && inv.discountTotal > 0) {
+            <tr>
+              <td>Discount</td>
+              <td class="text-end">−{{ inv.discountTotal | number: '1.2-2' }}</td>
             </tr>
           }
           <tr class="est-summary-net">

@@ -184,8 +184,8 @@ export class InvoicePrintSheet {
     return this.customer?.address?.trim() || '—';
   }
 
-  serviceAdvisor(): string {
-    return this.jobCard?.assignedTo?.trim() || '—';
+  assignedMechanic(): string {
+    return this.invoice?.assignedMechanic?.trim() || this.jobCard?.assignedTo?.trim() || '—';
   }
 
   advisorPhone(): string {

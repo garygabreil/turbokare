@@ -112,6 +112,7 @@ export class JobCardForm {
     model: [''],
     makeCustom: [''],
     modelCustom: [''],
+    color: [''],
     year: [null as number | null],
   });
 
@@ -222,6 +223,7 @@ export class JobCardForm {
       model: '',
       makeCustom: '',
       modelCustom: '',
+      color: '',
       year: null,
     });
     this.showAddModal.set(true);
@@ -252,6 +254,7 @@ export class JobCardForm {
         registrationNo: value.registrationNo,
         make,
         model,
+        color: value.color.trim() || undefined,
         year: value.year,
       };
       const vehicleRef = (await this.vehicleService.create(vehiclePayload as never)) as { id: string };
@@ -263,6 +266,7 @@ export class JobCardForm {
         registrationNo: value.registrationNo,
         make,
         model,
+        color: value.color.trim() || undefined,
         year: value.year,
       };
       this.localVehicles.update((list) => [...list, newVehicle]);

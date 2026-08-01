@@ -18,10 +18,16 @@
   }
 
   .table-sm {
+    min-width: 44rem;
+
     th,
     td {
       padding: 0.35rem 0.45rem;
       vertical-align: middle;
+    }
+
+    th.col-money {
+      white-space: nowrap;
     }
   }
 
@@ -44,5 +50,38 @@
   .searchable-select .input-group-text {
     padding: 0.25rem 0.45rem;
     font-size: 0.875rem;
+  }
+
+  /* Wide enough for ₹ + 6–7 digit amounts (e.g. 34000.00) without clipping */
+  .col-money {
+    min-width: 10.5rem;
+    width: 10.5rem;
+  }
+
+  .money-input {
+    width: 100%;
+    min-width: 9.75rem;
+
+    .input-group-text {
+      flex: 0 0 auto;
+      padding-inline: 0.45rem;
+    }
+
+    .form-control {
+      min-width: 5.5rem;
+      font-variant-numeric: tabular-nums;
+      padding-left: 0.45rem;
+      padding-right: 0.55rem;
+      text-align: left;
+
+      /* Spinners steal space and clip large amounts */
+      appearance: textfield;
+
+      &::-webkit-outer-spin-button,
+      &::-webkit-inner-spin-button {
+        appearance: none;
+        margin: 0;
+      }
+    }
   }
 }

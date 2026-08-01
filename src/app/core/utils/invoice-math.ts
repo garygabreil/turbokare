@@ -1,4 +1,4 @@
-import { BillingType, GstType, InvoiceItem } from '../models';
+import { BillingType, DiscountType, GstType, InvoiceItem } from '../models';
 
 /** Round to 2 decimal places for currency (INR). */
 export function roundMoney(value: number): number {
@@ -22,7 +22,13 @@ export interface InvoiceAmounts {
   sgst: number;
   igst: number;
   taxTotal: number;
+  discountTotal: number;
   total: number;
+}
+
+export interface InvoiceDiscount {
+  type: DiscountType;
+  value: number;
 }
 
 /** GST applies to parts/spares only — not labour or services. */
@@ -62,11 +68,73 @@ export function calculateLineAmounts(
   };
 }
 
+export function unitPriceFromLineAmount(
+  lineAmount: number,
+  quantity: number,
+  billingType: BillingType,
+  gstType: GstType | undefined,
+  gstPercent: number,
+  itemType?: InvoiceItem['itemType'],
+): number {
+  const qty = Number(quantity) || 0;
+  if (qty <= 0) {
+    return 0;
+  }
+
+  const amount = roundMoney(Number(lineAmount) || 0);
+  if (amount <= 0) {
+    return 0;
+  }
+
+  const taxable = billingType === 'gst' && isPartForGst(itemType) && gstPercent > 0;
+  if (!taxable) {
+    return roundMoney(amount / qty);
+  }
+
+  // Initial guess from inclusive amount; refine so CGST/SGST split rounding
+  // matches the entered figure (plain /1.18 can be off by ₹0.01).
+  const taxMultiplier = 1 + gstPercent / 100;
+  let unitPrice = roundMoney(amount / (qty * taxMultiplier));
+
+  for (let i = 0; i < 20; i++) {
+    const line = calculateLineAmounts(qty, unitPrice, billingType, gstType, gstPercent, itemType);
+    const diff = roundMoney(amount - line.amount);
+    if (diff === 0) {
+      return unitPrice;
+    }
+    unitPrice = roundMoney(unitPrice + diff / qty);
+  }
+
+  return unitPrice;
+}
+
+export function calculateDiscountTotal(gross: number, discount?: InvoiceDiscount): number {
+  if (!discount || discount.type === 'none') {
+    return 0;
+  }
+
+  const value = Number(discount.value) || 0;
+  if (value <= 0 || gross <= 0) {
+    return 0;
+  }
+
+  if (discount.type === 'fixed') {
+    return roundMoney(Math.min(value, gross));
+  }
+
+  if (discount.type === 'percent') {
+    return roundMoney(Math.min(gross, (gross * value) / 100));
+  }
+
+  return 0;
+}
+
 export function calculateInvoiceAmounts(
   items: InvoiceItem[],
   billingType: BillingType,
   gstType: GstType | undefined,
   gstPercent: number,
+  discount?: InvoiceDiscount,
 ): InvoiceAmounts {
   let subtotal = 0;
   let cgst = 0;
@@ -93,9 +161,11 @@ export function calculateInvoiceAmounts(
   sgst = roundMoney(sgst);
   igst = roundMoney(igst);
   const taxTotal = roundMoney(cgst + sgst + igst);
-  const total = roundMoney(subtotal + taxTotal);
+  const gross = roundMoney(subtotal + taxTotal);
+  const discountTotal = calculateDiscountTotal(gross, discount);
+  const total = roundMoney(Math.max(0, gross - discountTotal));
 
-  return { subtotal, cgst, sgst, igst, taxTotal, total };
+  return { subtotal, cgst, sgst, igst, taxTotal, discountTotal, total };
 }
 
 export function normalizeInvoiceItem(item: InvoiceItem): InvoiceItem {

@@ -14,6 +14,10 @@ import {
 } from '@angular/fire/firestore';
 import { Observable, shareReplay } from 'rxjs';
 
+function stripUndefined<T extends Record<string, unknown>>(data: T): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+}
+
 /**
  * Generic Firestore CRUD helper. Extend it with a concrete entity type and
  * collection name to get list/get/create/update/delete out of the box.
@@ -43,16 +47,16 @@ export abstract class FirestoreCrudService<T extends { id?: string }> {
   }
 
   create(data: T): Promise<unknown> {
-    const payload = { ...data, createdAt: Date.now() } as T;
-    delete (payload as { id?: string }).id;
-    return addDoc(this.ref, payload as Record<string, unknown>);
+    const payload = stripUndefined({ ...data, createdAt: Date.now() } as Record<string, unknown>);
+    delete payload['id'];
+    return addDoc(this.ref, payload);
   }
 
   update(id: string, data: Partial<T>): Promise<void> {
     const ref = doc(this.firestore, `${this.collectionName}/${id}`);
-    const payload = { ...data };
-    delete (payload as { id?: string }).id;
-    return updateDoc(ref, payload as Record<string, unknown>);
+    const payload = stripUndefined({ ...data } as Record<string, unknown>);
+    delete payload['id'];
+    return updateDoc(ref, payload);
   }
 
   remove(id: string): Promise<void> {
