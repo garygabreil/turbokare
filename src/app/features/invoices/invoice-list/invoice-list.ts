@@ -25,6 +25,7 @@ import {
   SortState,
   toggleSort,
 } from '../../../core/utils/table-utils';
+import { roundMoney } from '../../../core/utils/invoice-math';
 
 @Component({
   selector: 'app-invoice-list',
@@ -56,9 +57,15 @@ export class InvoiceList {
     return {
       total: items.length,
       billed: items.reduce((sum, i) => sum + (i.total ?? 0), 0),
-      collected: items
-        .filter((i) => i.status === 'paid')
-        .reduce((sum, i) => sum + (i.total ?? 0), 0),
+      collected: items.reduce((sum, i) => {
+        if (i.status === 'paid') {
+          return sum + (i.total ?? 0);
+        }
+        if (i.status === 'partial') {
+          return sum + (i.advanceAmount ?? 0);
+        }
+        return sum;
+      }, 0),
       unpaid: items.filter((i) => i.status !== 'paid').length,
     };
   });
@@ -120,7 +127,23 @@ export class InvoiceList {
       return;
     }
     try {
-      await this.invoiceService.update(id, { status });
+      const invoice = this.dayFiltered().find((i) => i.id === id);
+      const total = roundMoney(invoice?.total ?? 0);
+      const patch: Partial<{ status: InvoiceStatus; advanceAmount: number; balanceDue: number }> = {
+        status,
+      };
+      if (status === 'paid') {
+        patch.advanceAmount = total;
+        patch.balanceDue = 0;
+      } else if (status === 'unpaid') {
+        patch.advanceAmount = 0;
+        patch.balanceDue = total;
+      } else {
+        const advance = roundMoney(Math.min(Math.max(0, invoice?.advanceAmount ?? 0), total));
+        patch.advanceAmount = advance;
+        patch.balanceDue = roundMoney(Math.max(0, total - advance));
+      }
+      await this.invoiceService.update(id, patch);
       this.notify.success('Invoice status updated.');
     } catch (err) {
       this.notify.error((err as Error).message);

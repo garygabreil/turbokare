@@ -261,6 +261,16 @@
             <td>Net Amount</td>
             <td class="text-end">{{ inv.total | number: '1.2-2' }}</td>
           </tr>
+          @if (inv.advanceAmount && inv.advanceAmount > 0) {
+            <tr>
+              <td>Advance Received</td>
+              <td class="text-end">−{{ inv.advanceAmount | number: '1.2-2' }}</td>
+            </tr>
+            <tr class="est-summary-net">
+              <td>Balance Due</td>
+              <td class="text-end">{{ (inv.balanceDue ?? inv.total - inv.advanceAmount) | number: '1.2-2' }}</td>
+            </tr>
+          }
         </tbody>
       </table>
     </div>
@@ -305,6 +315,10 @@
       <div class="est-amount-box">
         <span class="est-amount-label">{{ documentTitle(inv) === 'ESTIMATE' ? 'Estimated Amount' : 'Invoice Amount' }}</span>
         <strong class="est-amount-value">{{ inv.total | inr }}</strong>
+        @if (inv.advanceAmount && inv.advanceAmount > 0) {
+          <span class="est-amount-label mt-1 d-block">Balance Due</span>
+          <strong class="est-amount-value">{{ (inv.balanceDue ?? inv.total - inv.advanceAmount) | inr }}</strong>
+        }
       </div>
     </div>
 

@@ -142,5 +142,9 @@ export interface Invoice {
   discountValue?: number;
   discountTotal?: number;
   total: number;
+  /** Amount already received from the customer (advance / part payment). */
+  advanceAmount?: number;
+  /** Remaining amount due after advance. */
+  balanceDue?: number;
   createdAt?: number;
 }

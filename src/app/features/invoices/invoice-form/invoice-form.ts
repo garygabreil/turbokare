@@ -18,6 +18,7 @@ import { loadSignal, orEmpty } from '../../../core/utils/loading-signal';
 import {
   calculateInvoiceAmounts,
   calculateLineAmounts,
+  calculateAdvanceAmounts,
   normalizeInvoiceItem,
   roundMoney,
   unitPriceFromLineAmount,
@@ -311,11 +312,13 @@ export class InvoiceForm {
     status: ['unpaid' as 'unpaid' | 'partial' | 'paid', [Validators.required]],
     discountType: ['none' as DiscountType],
     discountValue: [0, [Validators.min(0)]],
+    advanceAmount: [0, [Validators.min(0)]],
     partItems: this.fb.array([] as ReturnType<typeof this.createPartItem>[]),
     serviceItems: this.fb.array([] as ReturnType<typeof this.createServiceItem>[]),
   });
 
   constructor() {
+    this.form.controls.status.disable({ emitEvent: false });
     if (this.isEdit && this.id) {
       firstValueFrom(this.invoiceService.get(this.id))
         .then((invoice) => {
@@ -340,6 +343,7 @@ export class InvoiceForm {
               status: invoice.status,
               discountType: invoice.discountType ?? 'none',
               discountValue: invoice.discountValue ?? 0,
+              advanceAmount: invoice.advanceAmount ?? 0,
             });
           }
         })
@@ -690,6 +694,29 @@ export class InvoiceForm {
     return this.form.get('discountType')?.value !== 'none';
   }
 
+  private advanceState() {
+    return calculateAdvanceAmounts(this.total, Number(this.form.get('advanceAmount')?.value) || 0);
+  }
+
+  get advanceAmount(): number {
+    return this.advanceState().advanceAmount;
+  }
+
+  get balanceDue(): number {
+    return this.advanceState().balanceDue;
+  }
+
+  onAdvanceBlur(): void {
+    const state = this.advanceState();
+    this.form.patchValue(
+      {
+        advanceAmount: state.advanceAmount,
+        status: state.status,
+      },
+      { emitEvent: false },
+    );
+  }
+
   private pruneEmptyLineItems(): void {
     for (let i = this.partItems.length - 1; i >= 0; i--) {
       const desc = this.partItems.at(i).get('description')?.value?.trim();
@@ -766,6 +793,7 @@ export class InvoiceForm {
     }
     const assignedMechanic =
       (await this.resolveAssignedMechanic()) || this.storedAssignedMechanic().trim() || undefined;
+    const advance = calculateAdvanceAmounts(amounts.total, Number(value.advanceAmount) || 0);
     const payload = {
       invoiceNo: value.invoiceNo,
       customerId: value.customerId,
@@ -777,7 +805,7 @@ export class InvoiceForm {
       gstType: this.isGst ? value.gstType : '',
       gstPercent: this.effectiveGstPercent,
       customerGstin: this.isGst ? normalizeGstin(value.customerGstin) : '',
-      status: value.status,
+      status: advance.status,
       subtotal: amounts.subtotal,
       cgst: amounts.cgst,
       sgst: amounts.sgst,
@@ -787,6 +815,8 @@ export class InvoiceForm {
       discountValue: Number(value.discountValue) || 0,
       discountTotal: amounts.discountTotal,
       total: amounts.total,
+      advanceAmount: advance.advanceAmount,
+      balanceDue: advance.balanceDue,
     };
     try {
       if (this.isEdit && this.id) {

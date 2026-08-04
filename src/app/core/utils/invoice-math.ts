@@ -1,4 +1,4 @@
-import { BillingType, DiscountType, GstType, InvoiceItem } from '../models';
+import { BillingType, DiscountType, GstType, InvoiceItem, InvoiceStatus } from '../models';
 
 /** Round to 2 decimal places for currency (INR). */
 export function roundMoney(value: number): number {
@@ -29,6 +29,26 @@ export interface InvoiceAmounts {
 export interface InvoiceDiscount {
   type: DiscountType;
   value: number;
+}
+
+export interface InvoiceAdvanceAmounts {
+  advanceAmount: number;
+  balanceDue: number;
+  status: InvoiceStatus;
+}
+
+/** Cap advance to total and derive balance + payment status. */
+export function calculateAdvanceAmounts(total: number, advanceRaw: number): InvoiceAdvanceAmounts {
+  const totalAmt = roundMoney(Math.max(0, Number(total) || 0));
+  const advanceAmount = roundMoney(Math.min(Math.max(0, Number(advanceRaw) || 0), totalAmt));
+  const balanceDue = roundMoney(Math.max(0, totalAmt - advanceAmount));
+  let status: InvoiceStatus = 'unpaid';
+  if (totalAmt > 0 && balanceDue <= 0) {
+    status = 'paid';
+  } else if (advanceAmount > 0) {
+    status = 'partial';
+  }
+  return { advanceAmount, balanceDue, status };
 }
 
 /** GST applies to parts/spares only — not labour or services. */
