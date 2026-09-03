@@ -8,8 +8,10 @@ import { VehicleService } from '../../../core/services/vehicle.service';
 import { JobCardService } from '../../../core/services/job-card.service';
 import { FollowUpService } from '../../../core/services/follow-up.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ExportService } from '../../../core/services/export.service';
 import { Customer } from '../../../core/models';
 import { Pagination } from '../../../shared/pagination/pagination';
+import { DayFilter } from '../../../shared/day-filter/day-filter';
 import { ListSearch } from '../../../shared/list-search/list-search';
 import { PageLoading } from '../../../shared/page-loading/page-loading';
 import { FormKeyboardDirective } from '../../../shared/directives/form-keyboard.directive';
@@ -24,7 +26,19 @@ import {
   SortState,
   toggleSort,
 } from '../../../core/utils/table-utils';
-import { rowNumber as calcRowNumber } from '../../../core/utils/date-filter';
+import {
+  DayFilterMode,
+  isInDateRange,
+  isSameDay,
+  rowNumber as calcRowNumber,
+  todayDateInput,
+  toDateInput,
+} from '../../../core/utils/date-filter';
+import {
+  CUSTOMER_CSV_COLUMNS,
+  customerExportRows,
+  customerListExportFilename,
+} from '../../../core/utils/customer-export';
 
 export interface CustomerRow {
   customer: Customer;
@@ -33,6 +47,11 @@ export interface CustomerRow {
   pendingFollowUps: number;
   lastVisit: number | null;
 }
+
+export type CustomerSegment = 'all' | 'active' | 'follow-up' | 'inactive' | 'repeat';
+export type CustomerDateField = 'registered' | 'lastVisit';
+
+const MS_PER_DAY = 86_400_000;
 
 @Component({
   selector: 'app-customer-list',
@@ -43,6 +62,7 @@ export interface CustomerRow {
     ReactiveFormsModule,
     DatePipe,
     Pagination,
+    DayFilter,
     ListSearch,
     PageLoading,
     FormKeyboardDirective,
@@ -57,6 +77,7 @@ export class CustomerList {
   private readonly jobCardService = inject(JobCardService);
   private readonly followUpService = inject(FollowUpService);
   private readonly notify = inject(NotificationService);
+  private readonly exporter = inject(ExportService);
 
   private readonly customers = loadSignal(this.customerService.list());
   private readonly vehicles = loadSignal(this.vehicleService.list());
@@ -72,6 +93,10 @@ export class CustomerList {
 
   readonly search = signal('');
   readonly sort = signal<SortState>({ key: 'name', direction: 'asc' });
+  readonly dayMode = signal<DayFilterMode>('all');
+  readonly viewDate = signal(todayDateInput());
+  readonly dateField = signal<CustomerDateField>('registered');
+  readonly segment = signal<CustomerSegment>('all');
   readonly pageSize = 8;
   readonly page = signal(1);
   readonly showAddModal = signal(false);
@@ -89,13 +114,71 @@ export class CustomerList {
     year: [null as number | null],
   });
 
+  readonly dayFiltered = computed(() => {
+    const field = this.dateField();
+    return this.rows().filter((row) => this.matchesDayFilter(row, field));
+  });
+
+  readonly segmentFiltered = computed(() => {
+    const items = this.dayFiltered();
+    const seg = this.segment();
+    if (seg === 'all') {
+      return items;
+    }
+    const now = Date.now();
+    return items.filter((row) => {
+      switch (seg) {
+        case 'active':
+          return row.lastVisit !== null && now - row.lastVisit <= 90 * MS_PER_DAY;
+        case 'follow-up':
+          return row.pendingFollowUps > 0;
+        case 'inactive':
+          return row.lastVisit === null || now - row.lastVisit > 180 * MS_PER_DAY;
+        case 'repeat':
+          return row.jobCount >= 2;
+        default:
+          return true;
+      }
+    });
+  });
+
   readonly summary = computed(() => {
-    const rows = this.rows();
+    const items = this.segmentFiltered();
+    const now = Date.now();
+    const totalJobs = items.reduce((sum, row) => sum + row.jobCount, 0);
     return {
-      total: rows.length,
-      vehicles: orEmpty(this.vehicles()).length,
-      pendingFollowUps: orEmpty(this.followUps()).filter((f) => f.status === 'pending').length,
+      total: items.length,
+      vehicles: items.reduce((sum, row) => sum + row.vehicleCount, 0),
+      pendingFollowUps: items.reduce((sum, row) => sum + row.pendingFollowUps, 0),
+      active: items.filter(
+        (row) => row.lastVisit !== null && now - row.lastVisit <= 90 * MS_PER_DAY,
+      ).length,
+      repeat: items.filter((row) => row.jobCount >= 2).length,
+      noVisit: items.filter((row) => row.jobCount === 0).length,
+      avgJobs: items.length ? (totalJobs / items.length).toFixed(1) : '0',
+      newThisMonth: items.filter((row) =>
+        isInDateRange(row.customer.createdAt, this.monthStart(), todayDateInput()),
+      ).length,
     };
+  });
+
+  readonly topCustomers = computed(() =>
+    [...this.segmentFiltered()]
+      .filter((row) => row.jobCount > 0)
+      .sort((a, b) => b.jobCount - a.jobCount || a.customer.name.localeCompare(b.customer.name))
+      .slice(0, 5),
+  );
+
+  readonly periodLabel = computed(() => {
+    const mode = this.dayMode();
+    if (mode === 'all') {
+      return 'all time';
+    }
+    if (mode === 'today') {
+      return 'today';
+    }
+    const field = this.dateField() === 'registered' ? 'registered' : 'visited';
+    return `${field} on ${this.formatDisplayDate(this.viewDate())}`;
   });
 
   readonly rows = computed<CustomerRow[]>(() => {
@@ -131,10 +214,13 @@ export class CustomerList {
   });
 
   readonly filtered = computed(() => {
-    let items = searchByFields(this.rows(), this.search(), [
+    let items = this.segmentFiltered();
+    items = searchByFields(items, this.search(), [
       (r) => r.customer.name,
       (r) => r.customer.phone,
       (r) => r.customer.email,
+      (r) => r.customer.createdAt ? toDateInput(new Date(r.customer.createdAt)) : '',
+      (r) => r.lastVisit ? toDateInput(new Date(r.lastVisit)) : '',
     ]);
     return sortItems(items, this.sort(), {
       name: (r) => r.customer.name ?? '',
@@ -142,6 +228,7 @@ export class CustomerList {
       vehicles: (r) => r.vehicleCount,
       jobs: (r) => r.jobCount,
       followUps: (r) => r.pendingFollowUps,
+      registered: (r) => r.customer.createdAt ?? 0,
       lastVisit: (r) => r.lastVisit ?? 0,
     });
   });
@@ -151,6 +238,57 @@ export class CustomerList {
   onSearch(value: string): void {
     this.search.set(value);
     this.page.set(1);
+  }
+
+  onDayFilterChange(): void {
+    this.page.set(1);
+  }
+
+  setDateField(field: CustomerDateField): void {
+    this.dateField.set(field);
+    this.page.set(1);
+  }
+
+  setSegment(value: CustomerSegment): void {
+    this.segment.set(value);
+    this.page.set(1);
+  }
+
+  segmentLabel(value: CustomerSegment): string {
+    const labels: Record<CustomerSegment, string> = {
+      all: 'All',
+      active: 'Active (90d)',
+      'follow-up': 'Follow-ups',
+      inactive: 'Inactive',
+      repeat: 'Repeat',
+    };
+    return labels[value];
+  }
+
+  private monthStart(): string {
+    const d = new Date();
+    return toDateInput(new Date(d.getFullYear(), d.getMonth(), 1));
+  }
+
+  private formatDisplayDate(dateStr: string): string {
+    return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  private matchesDayFilter(row: CustomerRow, field: CustomerDateField): boolean {
+    const mode = this.dayMode();
+    if (mode === 'all') {
+      return true;
+    }
+    const ts = field === 'registered' ? row.customer.createdAt : row.lastVisit ?? undefined;
+    if (field === 'lastVisit' && !ts) {
+      return false;
+    }
+    const dateStr = mode === 'today' ? todayDateInput() : this.viewDate();
+    return isSameDay(ts, dateStr);
   }
 
   setSort(key: string): void {
@@ -164,6 +302,20 @@ export class CustomerList {
 
   rowNumber(index: number): number {
     return calcRowNumber(this.page(), this.pageSize, index);
+  }
+
+  exportCsv(): void {
+    const rows = this.filtered();
+    if (!rows.length) {
+      this.notify.info('No customers to export for the current filters.');
+      return;
+    }
+    this.exporter.toCsv(
+      customerExportRows(rows),
+      CUSTOMER_CSV_COLUMNS,
+      customerListExportFilename(this.dayMode(), this.viewDate(), this.segment()),
+    );
+    this.notify.success(`Exported ${rows.length} customer(s) to CSV.`);
   }
 
   openAdd(): void {

@@ -4,9 +4,9 @@
     <h1 class="h3 page-title mb-0">Customers</h1>
     <div class="page-meta">
       <span class="meta-badge">
-        <i class="bi bi-people me-1"></i>CRM
+        <i class="bi bi-people me-1"></i>CRM &amp; analytics
       </span>
-      <span class="meta-text">{{ summary().total }} customer(s)</span>
+      <span class="meta-text">{{ summary().total }} customer(s) · {{ periodLabel() }}</span>
     </div>
   </div>
   <button type="button" class="btn btn-primary btn-sm" (click)="openAdd()">
@@ -15,7 +15,7 @@
 </div>
 
 <div class="row g-3 mb-3 page-summary">
-  <div class="col-6 col-md-4">
+  <div class="col-6 col-md-4 col-xl-2">
     <div class="card page-stat page-stat--primary h-100">
       <div class="card-body">
         <div class="stat-label">Total customers</div>
@@ -23,19 +23,92 @@
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-4">
-    <div class="card page-stat page-stat--info h-100">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card page-stat page-stat--success h-100">
       <div class="card-body">
-        <div class="stat-label">Registered vehicles</div>
-        <div class="stat-value">{{ summary().vehicles }}</div>
+        <div class="stat-label">Active (90 days)</div>
+        <div class="stat-value">{{ summary().active }}</div>
       </div>
     </div>
   </div>
-  <div class="col-12 col-md-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card page-stat page-stat--info h-100">
+      <div class="card-body">
+        <div class="stat-label">Repeat customers</div>
+        <div class="stat-value">{{ summary().repeat }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
     <div class="card page-stat page-stat--warning h-100">
       <div class="card-body">
         <div class="stat-label">Pending follow-ups</div>
         <div class="stat-value">{{ summary().pendingFollowUps }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card page-stat page-stat--danger h-100">
+      <div class="card-body">
+        <div class="stat-label">No visits yet</div>
+        <div class="stat-value">{{ summary().noVisit }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card page-stat page-stat--money h-100">
+      <div class="card-body">
+        <div class="stat-label">Avg jobs / customer</div>
+        <div class="stat-value">{{ summary().avgJobs }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-8">
+    <app-day-filter
+      [mode]="dayMode()"
+      (modeChange)="dayMode.set($event); onDayFilterChange()"
+      [selectedDate]="viewDate()"
+      (selectedDateChange)="viewDate.set($event); onDayFilterChange()"
+    />
+    <div class="status-chips mt-2">
+      <span class="small text-muted me-1 align-self-center">Date applies to</span>
+      @for (field of ['registered', 'lastVisit']; track field) {
+        <button
+          type="button"
+          class="status-chip"
+          [class.active]="dateField() === field"
+          (click)="setDateField($any(field))"
+        >
+          {{ field === 'registered' ? 'Registered' : 'Last visit' }}
+        </button>
+      }
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card customer-insights h-100">
+      <div class="card-body py-3">
+        <div class="fw-semibold small mb-2">
+          <i class="bi bi-graph-up-arrow me-1"></i>Top customers by jobs
+        </div>
+        @if (topCustomers().length) {
+          <ul class="customer-insights__list mb-0">
+            @for (row of topCustomers(); track row.customer.id; let i = $index) {
+              <li>
+                <span class="customer-insights__rank">{{ i + 1 }}</span>
+                <span class="customer-insights__name">{{ row.customer.name }}</span>
+                <span class="customer-insights__metric">{{ row.jobCount }} jobs</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <div class="small text-muted">No job history in current filters.</div>
+        }
+        <div class="small text-muted mt-2 pt-2 border-top">
+          {{ summary().vehicles }} vehicle(s) · {{ summary().newThisMonth }} new this month
+        </div>
       </div>
     </div>
   </div>
@@ -44,12 +117,34 @@
 <div class="card page-main-card">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
     <span class="fw-semibold">Customer directory</span>
-    <span class="small text-muted">{{ filtered().length }} shown</span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="small text-muted">{{ filtered().length }} shown</span>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-primary"
+        (click)="exportCsv()"
+        [disabled]="!filtered().length"
+      >
+        <i class="bi bi-download me-1"></i>Export CSV
+      </button>
+    </div>
   </div>
   <div class="card-body">
-    <div class="table-toolbar mb-3">
+    <div class="table-toolbar">
+      <div class="status-chips">
+        @for (seg of ['all', 'active', 'follow-up', 'inactive', 'repeat']; track seg) {
+          <button
+            type="button"
+            class="status-chip"
+            [class.active]="segment() === seg"
+            (click)="setSegment($any(seg))"
+          >
+            {{ segmentLabel($any(seg)) }}
+          </button>
+        }
+      </div>
       <app-list-search
-        placeholder="Search name, phone or email…"
+        placeholder="Search name, phone, email or date (YYYY-MM-DD)…"
         [value]="search()"
         (valueChange)="onSearch($event)"
       />
@@ -76,6 +171,9 @@
               <th class="sortable text-center" (click)="setSort('followUps')">
                 Follow-ups <i class="bi {{ sortIcon('followUps') }}"></i>
               </th>
+              <th class="sortable d-none d-xl-table-cell" (click)="setSort('registered')">
+                Registered <i class="bi {{ sortIcon('registered') }}"></i>
+              </th>
               <th class="sortable d-none d-lg-table-cell" (click)="setSort('lastVisit')">
                 Last visit <i class="bi {{ sortIcon('lastVisit') }}"></i>
               </th>
@@ -89,6 +187,9 @@
                 <td>
                   <div class="fw-semibold">{{ row.customer.name }}</div>
                   <div class="small text-muted d-md-none">{{ row.customer.phone }}</div>
+                  @if (row.jobCount >= 2) {
+                    <span class="badge text-bg-light border mt-1">Repeat</span>
+                  }
                 </td>
                 <td class="d-none d-md-table-cell">{{ row.customer.phone }}</td>
                 <td class="text-center">{{ row.vehicleCount }}</td>
@@ -96,6 +197,13 @@
                 <td class="text-center">
                   @if (row.pendingFollowUps) {
                     <span class="badge text-bg-warning">{{ row.pendingFollowUps }}</span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="d-none d-xl-table-cell">
+                  @if (row.customer.createdAt) {
+                    {{ row.customer.createdAt | date: 'dd MMM yyyy' }}
                   } @else {
                     <span class="text-muted">—</span>
                   }
@@ -131,7 +239,7 @@
     } @else {
       <div class="text-center text-muted py-5">
         <i class="bi bi-people" style="font-size: 2.5rem"></i>
-        <p class="mt-2 mb-0">No customers found.</p>
+        <p class="mt-2 mb-0">No customers match your filters.</p>
       </div>
     }
   </div>
