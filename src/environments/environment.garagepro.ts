@@ -1,11 +1,10 @@
-// Firebase configuration.
-// Find these values in the Firebase console:
-//   Project settings -> General -> Your apps -> SDK setup and configuration.
+// Generic GaragePro product — supports monthly, quarterly, and yearly licenses.
+// Use in angular.json fileReplacements for non-TurboKare deployments.
 export const environment = {
-  production: false,
+  production: true,
   product: {
-    mode: 'turbokare' as const,
-    displayName: 'TurboKare',
+    mode: 'garagepro' as const,
+    displayName: 'GaragePro',
   },
   firebase: {
     apiKey: 'AIzaSyCnG_A97ZtKbKQWphltLEZaARdgysT5MM8',

@@ -1,7 +1,9 @@
+import { LowerCasePipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ConnectivityService } from '../../core/services/connectivity.service';
+import { LicenseService } from '../../core/services/license.service';
 import { NavigationLoadingService } from '../../core/services/navigation-loading.service';
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -14,7 +16,7 @@ interface NavItem {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LowerCasePipe],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })
@@ -24,8 +26,10 @@ export class Shell {
   private readonly notify = inject(NotificationService);
   readonly navLoading = inject(NavigationLoadingService);
   readonly connectivity = inject(ConnectivityService);
+  readonly license = inject(LicenseService);
 
   readonly user = this.auth.user;
+  readonly licenseStatus = this.license.status;
   readonly year = new Date().getFullYear();
 
   readonly navItems: NavItem[] = [

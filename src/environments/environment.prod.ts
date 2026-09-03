@@ -1,6 +1,10 @@
 // Production Firebase configuration.
 export const environment = {
   production: true,
+  product: {
+    mode: 'turbokare' as const,
+    displayName: 'TurboKare',
+  },
   firebase: {
     apiKey: 'AIzaSyCnG_A97ZtKbKQWphltLEZaARdgysT5MM8',
     authDomain: 'garage-management-app-69195.firebaseapp.com',
