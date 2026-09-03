@@ -65,52 +65,43 @@
   </div>
 </div>
 
-<div class="row g-3 mb-3">
-  <div class="col-lg-8">
-    <app-day-filter
-      [mode]="dayMode()"
-      (modeChange)="dayMode.set($event); onDayFilterChange()"
-      [selectedDate]="viewDate()"
-      (selectedDateChange)="viewDate.set($event); onDayFilterChange()"
-    />
-    <div class="status-chips mt-2">
-      <span class="small text-muted me-1 align-self-center">Date applies to</span>
-      @for (field of ['registered', 'lastVisit']; track field) {
-        <button
-          type="button"
-          class="status-chip"
-          [class.active]="dateField() === field"
-          (click)="setDateField($any(field))"
-        >
-          {{ field === 'registered' ? 'Registered' : 'Last visit' }}
-        </button>
-      }
-    </div>
+<div class="customer-filters-strip mb-3">
+  <app-day-filter
+    class="customer-filters-strip__day"
+    [mode]="dayMode()"
+    (modeChange)="dayMode.set($event); onDayFilterChange()"
+    [selectedDate]="viewDate()"
+    (selectedDateChange)="viewDate.set($event); onDayFilterChange()"
+  />
+  <div class="customer-filters-strip__match status-chips">
+    <span class="day-filter-label">Match</span>
+    @for (field of ['registered', 'lastVisit']; track field) {
+      <button
+        type="button"
+        class="status-chip"
+        [class.active]="dateField() === field"
+        (click)="setDateField($any(field))"
+      >
+        {{ field === 'registered' ? 'Registered' : 'Last visit' }}
+      </button>
+    }
   </div>
-  <div class="col-lg-4">
-    <div class="card customer-insights h-100">
-      <div class="card-body py-3">
-        <div class="fw-semibold small mb-2">
-          <i class="bi bi-graph-up-arrow me-1"></i>Top customers by jobs
-        </div>
-        @if (topCustomers().length) {
-          <ul class="customer-insights__list mb-0">
-            @for (row of topCustomers(); track row.customer.id; let i = $index) {
-              <li>
-                <span class="customer-insights__rank">{{ i + 1 }}</span>
-                <span class="customer-insights__name">{{ row.customer.name }}</span>
-                <span class="customer-insights__metric">{{ row.jobCount }} jobs</span>
-              </li>
-            }
-          </ul>
-        } @else {
-          <div class="small text-muted">No job history in current filters.</div>
+  @if (topCustomers().length) {
+    <div class="customer-filters-strip__top">
+      <div class="day-filter-label">Top jobs</div>
+      <ul class="customer-top-list">
+        @for (row of topCustomers(); track row.customer.id; let i = $index) {
+          <li>
+            <span class="customer-top-list__rank">{{ i + 1 }}</span>
+            <span class="customer-top-list__name">{{ row.customer.name }}</span>
+            <span class="customer-top-list__jobs">{{ row.jobCount }} jobs</span>
+          </li>
         }
-        <div class="small text-muted mt-2 pt-2 border-top">
-          {{ summary().vehicles }} vehicle(s) · {{ summary().newThisMonth }} new this month
-        </div>
-      </div>
+      </ul>
     </div>
+  }
+  <div class="customer-filters-strip__meta">
+    {{ summary().vehicles }} vehicles · {{ summary().newThisMonth }} new this month
   </div>
 </div>
 
