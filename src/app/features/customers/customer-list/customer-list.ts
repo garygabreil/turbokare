@@ -93,7 +93,7 @@ export class CustomerList {
 
   readonly search = signal('');
   readonly sort = signal<SortState>({ key: 'name', direction: 'asc' });
-  readonly dayMode = signal<DayFilterMode>('all');
+  readonly dayMode = signal<DayFilterMode>('today');
   readonly viewDate = signal(todayDateInput());
   readonly dateField = signal<CustomerDateField>('registered');
   readonly segment = signal<CustomerSegment>('all');
@@ -170,14 +170,15 @@ export class CustomerList {
   );
 
   readonly periodLabel = computed(() => {
+    const field =
+      this.dateField() === 'registered' ? 'registered date' : 'last visit date';
     const mode = this.dayMode();
     if (mode === 'all') {
-      return 'all time';
+      return `all time · by ${field}`;
     }
     if (mode === 'today') {
-      return 'today';
+      return `today · by ${field}`;
     }
-    const field = this.dateField() === 'registered' ? 'registered' : 'visited';
     return `${field} on ${this.formatDisplayDate(this.viewDate())}`;
   });
 
@@ -241,12 +242,26 @@ export class CustomerList {
   }
 
   onDayFilterChange(): void {
+    if (this.dayMode() === 'all') {
+      this.applyDateFieldSort();
+    }
     this.page.set(1);
   }
 
   setDateField(field: CustomerDateField): void {
     this.dateField.set(field);
+    if (this.dayMode() === 'all') {
+      this.applyDateFieldSort();
+    }
     this.page.set(1);
+  }
+
+  private applyDateFieldSort(): void {
+    const field = this.dateField();
+    this.sort.set({
+      key: field === 'registered' ? 'registered' : 'lastVisit',
+      direction: 'desc',
+    });
   }
 
   setSegment(value: CustomerSegment): void {
@@ -284,7 +299,7 @@ export class CustomerList {
       return true;
     }
     const ts = field === 'registered' ? row.customer.createdAt : row.lastVisit ?? undefined;
-    if (field === 'lastVisit' && !ts) {
+    if (!ts) {
       return false;
     }
     const dateStr = mode === 'today' ? todayDateInput() : this.viewDate();

@@ -81,6 +81,7 @@
         class="status-chip"
         [class.active]="dateField() === field"
         (click)="setDateField($any(field))"
+        [title]="dayMode() === 'all' ? 'Sort by this date' : 'Filter by this date'"
       >
         {{ field === 'registered' ? 'Registered' : 'Last visit' }}
       </button>
