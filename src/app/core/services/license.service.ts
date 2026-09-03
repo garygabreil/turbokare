@@ -6,14 +6,17 @@ import { AppLicense } from '../models/license';
 import { allowedPlansForProduct, buildLicenseStatus, expiresAtForPlan } from '../utils/license-math';
 import { environment } from '../../../environments/environment';
 
-/** Default TurboKare yearly license — started ~2 months ago (Jul 2026). */
+const MS_PER_DAY = 86_400_000;
+
+/** Default TurboKare yearly license — expires in 1 day (demo / until Firestore doc is set). */
 function defaultTurboKareLicense(): AppLicense {
-  const startsAt = new Date('2026-07-03T00:00:00').getTime();
+  const expiresAt = Date.now() + MS_PER_DAY;
+  const startsAt = expiresAt - 365 * MS_PER_DAY;
   return {
     customerName: GARAGE_PROFILE.name,
     plan: 'yearly',
     startsAt,
-    expiresAt: expiresAtForPlan('yearly', startsAt),
+    expiresAt,
     active: true,
   };
 }
