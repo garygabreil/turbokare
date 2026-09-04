@@ -1,0 +1,48 @@
+.license-expired-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(160deg, #f8fafc 0%, #eef2f7 100%);
+}
+
+.license-expired-card {
+  width: 100%;
+  max-width: 26rem;
+  background: #fff;
+  border-radius: 0.85rem;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.1);
+  padding: 1.75rem 1.5rem;
+  border-top: 4px solid #dc2626;
+}
+
+.license-expired-logo {
+  height: 52px;
+  width: auto;
+}
+
+.license-expired-alert {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  color: #991b1b;
+  margin-bottom: 1rem;
+
+  .bi {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+}
+
+.license-expired-footer {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}

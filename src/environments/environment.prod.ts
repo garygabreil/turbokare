@@ -4,6 +4,7 @@ export const environment = {
   product: {
     mode: 'turbokare' as const,
     displayName: 'TurboKare',
+    licenseSuspended: true,
   },
   firebase: {
     apiKey: 'AIzaSyCnG_A97ZtKbKQWphltLEZaARdgysT5MM8',

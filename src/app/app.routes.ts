@@ -1,15 +1,26 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/guards/auth.guard';
+import {
+  authGuard,
+  guestGuard,
+  licenseExpiredPageGuard,
+  licenseValidGuard,
+} from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: 'license-expired',
+    canActivate: [licenseExpiredPageGuard],
+    loadComponent: () =>
+      import('./features/auth/license-expired/license-expired').then((m) => m.LicenseExpired),
+  },
+  {
     path: 'login',
-    canActivate: [guestGuard],
+    canActivate: [licenseValidGuard, guestGuard],
     loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
   },
   {
     path: '',
-    canActivate: [authGuard],
+    canActivate: [licenseValidGuard, authGuard],
     loadComponent: () => import('./layout/shell/shell').then((m) => m.Shell),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -83,5 +94,5 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: '' },
+  { path: '**', redirectTo: 'dashboard' },
 ];

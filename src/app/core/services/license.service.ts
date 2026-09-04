@@ -8,16 +8,14 @@ import { environment } from '../../../environments/environment';
 
 const MS_PER_DAY = 86_400_000;
 
-/** Default TurboKare yearly license — expires in 1 day (demo / until Firestore doc is set). */
-function defaultTurboKareLicense(): AppLicense {
-  const expiresAt = Date.now() + MS_PER_DAY;
-  const startsAt = expiresAt - 365 * MS_PER_DAY;
+function suspendedTurboKareLicense(): AppLicense {
+  const expiresAt = Date.now() - MS_PER_DAY;
   return {
     customerName: GARAGE_PROFILE.name,
     plan: 'yearly',
-    startsAt,
+    startsAt: expiresAt - 365 * MS_PER_DAY,
     expiresAt,
-    active: true,
+    active: false,
   };
 }
 
@@ -25,6 +23,7 @@ function defaultTurboKareLicense(): AppLicense {
 export class LicenseService {
   private readonly firestore = inject(Firestore);
   private readonly mode = environment.product?.mode ?? 'garagepro';
+  private readonly suspended = environment.product?.licenseSuspended === true;
 
   private readonly firestoreLicense = toSignal(
     docData(doc(this.firestore, 'settings', 'license')),
@@ -32,12 +31,15 @@ export class LicenseService {
   );
 
   readonly license = computed<AppLicense>(() => {
+    if (this.suspended) {
+      return suspendedTurboKareLicense();
+    }
     const remote = this.firestoreLicense() as AppLicense | undefined;
     if (remote?.expiresAt && remote?.plan) {
       return remote;
     }
     if (this.mode === 'turbokare') {
-      return defaultTurboKareLicense();
+      return suspendedTurboKareLicense();
     }
     return {
       customerName: environment.product?.displayName ?? 'GaragePro',

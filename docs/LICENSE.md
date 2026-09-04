@@ -58,6 +58,22 @@ If no Firestore document exists:
 - Warning banner when **≤ 30 days** left
 - Red banner when **expired**
 
+## Suspend access (non-payment)
+
+Set in `environment.prod.ts`:
+
+```typescript
+product: {
+  mode: 'turbokare',
+  displayName: 'TurboKare',
+  licenseSuspended: true,
+}
+```
+
+When `licenseSuspended` is `true`, the app shows a **License expired** screen and blocks login — even if a valid Firestore license document exists.
+
+To restore access after payment, set `licenseSuspended: false` and ensure Firestore `settings/license` has a valid `expiresAt` and `active: true`.
+
 ## Renewing a license
 
 Update `expiresAt` (and optionally `startsAt`) in Firestore, or set `active: true` after payment.

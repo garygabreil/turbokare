@@ -1,0 +1,31 @@
+<div class="license-expired-page">
+  <div class="license-expired-card">
+    <div class="text-center mb-4">
+      <img [src]="garage.logoUrl" [alt]="garage.name + ' logo'" class="license-expired-logo" />
+      <h1 class="h4 mt-3 mb-1">Application unavailable</h1>
+      <p class="text-muted mb-0">License not active for {{ garage.name }}</p>
+    </div>
+
+    <div class="license-expired-alert">
+      <i class="bi bi-exclamation-octagon me-2"></i>
+      <div>
+        <strong>License expired or unpaid</strong>
+        <p class="mb-0 mt-1 small">
+          Your {{ license.status().planLabel | lowercase }} subscription is no longer active.
+          @if (license.status().expiryLabel !== '—') {
+            Expired on <strong>{{ license.status().expiryLabel }}</strong>.
+          }
+        </p>
+      </div>
+    </div>
+
+    <p class="small text-muted mb-0">
+      Please contact <strong>Mdleware Software Solutions</strong> to renew your license and restore access
+      to JG GaragePro.
+    </p>
+  </div>
+
+  <footer class="license-expired-footer">
+    © {{ year }} Mdleware Software Solutions. All rights reserved.
+  </footer>
+</div>
